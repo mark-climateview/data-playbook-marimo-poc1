@@ -1,6 +1,7 @@
 import requests
 import json
 import pandas as pd
+from cache_manager import CBSCacheManager
 
 
 # From Dutch to English translations for vehicle data
@@ -178,11 +179,145 @@ def translate(src):
     return translations.get(src, src)
 
 
-def get_cbs_url(u):
-    df = pd.read_json(u)
-    expanded_df = df
-    expanded_df = expanded_df.join(pd.DataFrame(expanded_df.pop("value").values.tolist()))
-    # Remove the "odata.metadata" column:
-    if "odata.metadata" in expanded_df.columns:
-        expanded_df = expanded_df.drop(columns=["odata.metadata"])
-    return expanded_df
+# Initialize global cache manager
+_cache_manager = CBSCacheManager()
+
+
+def get_cbs_url(u, force_refresh=False, use_cache=True):
+    """
+    Fetch CBS OData URL with intelligent caching.
+    
+    Args:
+        u: CBS OData URL to fetch
+        force_refresh: If True, bypass cache and fetch fresh data
+        use_cache: If False, disable caching entirely (for debugging)
+    
+    Returns:
+        pandas.DataFrame: Processed CBS data
+    """
+    if use_cache:
+        # Try to get data from cache first
+        cached_df = _cache_manager.get_cached_data(u, force_refresh=force_refresh)
+        if cached_df is not None:
+            print(f"Loaded from cache: {u}")
+            return cached_df
+        
+        print(f"Cache miss, fetching from API: {u}")
+    
+    # Fetch from API
+    try:
+        df = pd.read_json(u)
+        expanded_df = df
+        expanded_df = expanded_df.join(pd.DataFrame(expanded_df.pop("value").values.tolist()))
+        
+        # Remove the "odata.metadata" column:
+        if "odata.metadata" in expanded_df.columns:
+            expanded_df = expanded_df.drop(columns=["odata.metadata"])
+        
+        # Save to cache if caching is enabled
+        if use_cache:
+            _cache_manager.save_data_to_cache(u, expanded_df)
+        
+        return expanded_df
+        
+    except Exception as e:
+        print(f"Error fetching data from {u}: {e}")
+        # Try to return stale cached data as fallback
+        if use_cache:
+            cached_df = _cache_manager.get_cached_data(u, force_refresh=False)
+            if cached_df is not None:
+                print(f"Using stale cached data as fallback: {u}")
+                return cached_df
+        raise
+
+
+def invalidate_cache(url=None):
+    """
+    Invalidate cache for specific dataset or all cached data.
+    
+    Args:
+        url: CBS dataset URL to invalidate, or None to invalidate all
+    """
+    _cache_manager.invalidate_cache(url)
+
+
+def get_cache_stats():
+    """Get cache statistics."""
+    return _cache_manager.get_cache_stats()
+
+
+def cleanup_fragmented_cache(dataset_id=None):
+    """
+    Clean up fragmented cache files from paginated requests.
+    
+    Args:
+        dataset_id: Optional dataset ID to clean, or None to clean all
+    
+    Returns:
+        Number of files cleaned up
+    """
+    return _cache_manager.cleanup_fragmented_cache(dataset_id)
+
+
+def get_cbs_url_paginated(base_url, page_size=5000, use_cache=True, force_refresh=False):
+    """
+    Fetch complete CBS dataset using pagination with intelligent aggregate caching.
+    
+    Args:
+        base_url: Base CBS OData URL without pagination parameters
+        page_size: Records per page (default 5000)
+        use_cache: Whether to use caching (default True)
+        force_refresh: Force refresh even if cached (default False)
+    
+    Returns:
+        Complete pandas.DataFrame with all records
+    """
+    if use_cache:
+        # Check if we have a complete cached dataset
+        # For paginated requests, we use the base URL for cache lookup
+        cached_df = _cache_manager.get_cached_data(base_url, force_refresh=force_refresh)
+        if cached_df is not None:
+            print(f"Loaded complete dataset from cache: {base_url}")
+            return cached_df
+        
+        print(f"Cache miss, fetching complete paginated dataset: {base_url}")
+
+    # Fetch data using pagination
+    skip = 0
+    all_data = []
+    
+    while True:
+        paged_url = f"{base_url}?$top={page_size}&$skip={skip}"
+        try:
+            # For individual pages, disable caching to avoid fragment storage
+            page_df = get_cbs_url(paged_url, use_cache=False, force_refresh=True)
+            if page_df.empty or len(page_df) == 0:
+                break  # No more data
+            
+            all_data.append(page_df)
+            skip += page_size
+            print(f"Fetched {len(page_df)} records (total so far: {skip})")
+            
+            # If we got fewer records than page_size, we've reached the end
+            if len(page_df) < page_size:
+                break
+                
+        except Exception as e:
+            print(f"Error fetching page at skip={skip}: {e}")
+            break
+    
+    if all_data:
+        # Combine all pages into a single DataFrame
+        import pandas as pd
+        complete_df = pd.concat(all_data, ignore_index=True)
+        print(f"Total records fetched: {len(complete_df)}")
+        
+        # Save complete dataset to cache using clean key
+        if use_cache:
+            _cache_manager.save_aggregated_data_to_cache(base_url, complete_df)
+        
+        return complete_df
+    else:
+        # Fallback to empty DataFrame
+        import pandas as pd
+        return pd.DataFrame()

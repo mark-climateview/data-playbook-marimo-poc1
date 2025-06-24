@@ -242,5 +242,41 @@ def _():
     return (util,)
 
 
+@app.cell
+def _(mo, util):
+    mo.md(r"""
+    ## Cache Management
+    
+    The data is now cached locally for faster loading. Use the functions below to manage the cache:
+    """)
+    return
+
+
+@app.cell
+def _(mo, util):
+    # Cache management controls
+    def show_cache_stats():
+        stats = util.get_cache_stats()
+        return f"""
+        **Cache Statistics:**
+        - Metadata files: {stats['metadata_files']}
+        - Data files: {stats['data_files']}
+        - Total size: {stats['total_size_mb']} MB
+        - Cache directory: {stats['cache_dir']}
+        """
+    
+    def clear_cache():
+        util.invalidate_cache()
+        return "✅ All cache cleared"
+    
+    def clear_dataset_cache():
+        util.invalidate_cache("https://opendata.cbs.nl/ODataApi/OData/85237NED")
+        return "✅ Cache cleared for dataset 85237NED"
+    
+    # Display cache stats
+    mo.md(show_cache_stats())
+    return (clear_cache, clear_dataset_cache, show_cache_stats)
+
+
 if __name__ == "__main__":
     app.run()

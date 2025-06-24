@@ -12,6 +12,9 @@ Important notes and caveats:
 - You can always run Marimo files directly, e.g. with "uv run data_table_85237NED.py", 
 - After changing a Marimo file, run it in order to test if it works or if it generate errors;
   - A working file will generate no output, a broken file will give an Exception stack trace.
+- The project uses intelligent caching for CBS data APIs (cache/ directory)
+  - Use util.get_cbs_url_paginated() for large TypedDataSet endpoints
+  - See CACHE_README.md for details
 
 
 

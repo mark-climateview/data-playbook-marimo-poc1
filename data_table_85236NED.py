@@ -144,43 +144,13 @@ def _(mo):
 @app.cell
 def _(get_metadata, util):
     def get_typed_data_set():
-        import pandas as pd
         # Get the URL for name == "TypedDataSet" from the metadata DataFrame
         metadata_df = get_metadata()
         typed_data_set_url = metadata_df.loc[metadata_df['name'] == 'TypedDataSet', 'url'].values[0]
         
-        # Fetch data using pagination to get the complete dataset
-        # CBS API has a 10k record limit per request, so we'll use $skip and $top
-        page_size = 5000  # Use smaller pages for reliability
-        skip = 0
-        all_data = []
-        
-        while True:
-            paged_url = f"{typed_data_set_url}?$top={page_size}&$skip={skip}"
-            try:
-                page_df = util.get_cbs_url(paged_url)
-                if page_df.empty or len(page_df) == 0:
-                    break  # No more data
-                all_data.append(page_df)
-                skip += page_size
-                print(f"Fetched {len(page_df)} records (total so far: {skip})")
-                
-                # If we got fewer records than page_size, we've reached the end
-                if len(page_df) < page_size:
-                    break
-                    
-            except Exception as e:
-                print(f"Error fetching page at skip={skip}: {e}")
-                break
-        
-        if all_data:
-            # Combine all pages into a single DataFrame
-            complete_df = pd.concat(all_data, ignore_index=True)
-            print(f"Total records fetched: {len(complete_df)}")
-            return complete_df
-        else:
-            # Fallback to empty DataFrame
-            return pd.DataFrame()
+        # Use the new aggregate caching function for paginated datasets
+        # This will cache the complete dataset with a clean filename
+        return util.get_cbs_url_paginated(typed_data_set_url, page_size=5000)
 
     typed_data_set_df = get_typed_data_set()
     typed_data_set_df
