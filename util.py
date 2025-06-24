@@ -161,7 +161,17 @@ translations = {
     "2151-2250 kg": "2151-2250 kg",
     "2251-2350 kg": "2251-2350 kg",
     "2351-2450 kg": "2351-2450 kg",
-    "2451 kg en meer": "2451 kg and above"
+    "2451 kg en meer": "2451 kg and above",
+    
+    # 85236NED - Motor vehicles by type and region dataset
+    "Regio's": "Regions",
+    "Period": "Period",
+    "Totaal wegvoertuigen": "Total Road Vehicles",
+    "Totaal bedrijfsvoertuigen": "Total Commercial Vehicles",
+    "Totaal bedrijfsmotorvoertuigen": "Total Commercial Motor Vehicles",
+    "Totaal aanhangwagens en opleggers": "Total Trailers and Semi-trailers",
+    "Motorfiets": "Motorcycle",
+    "Alle voertuigen met bromfietskenteken": "All Moped-licensed Vehicles"
 }
 
 def translate(src):

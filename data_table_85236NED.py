@@ -12,7 +12,7 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(r"""# 85237NED""")
+    mo.md(r"""# 85236NED""")
     return
 
 
@@ -20,32 +20,28 @@ def _(mo):
 def _(mo):
     description = """
 
-    ### Active passenger cars
+    ### Motor vehicles active by vehicle type, postal code, region
 
     | | |
     |-|-|
-    | name   |  "Active passenger cars; vehicle characteristics, regions, January 1" | 
+    | name   |  "Motorvoertuigen actief; voertuigtype, postcode, regio, 1 januari, 2019-2023" | 
     | unit   |  "number of vehicles" | 
-    | url    |  "http://opendata.cbs.nl/ODataApi/OData/85237NED" |
+    | url    |  "http://opendata.cbs.nl/ODataApi/OData/85236NED" |
 
-    This table contains figures on active passenger cars in the Netherlands as of January 1st, broken down by various vehicle characteristics and regions. The data includes:
+    This table contains figures on active motor vehicles in the Netherlands as of January 1st, broken down by vehicle type, postal code, and region. The data includes:
 
-    - Vehicle characteristics: construction year, fuel type, curb weight class, and color
-    - Ownership details: private owners by age group and business ownership
-    - Regional breakdown by all Dutch provinces
-    - Number of active vehicles that were eligible to participate in public road traffic
+    - Vehicle types: passenger cars, commercial vehicles (delivery vans, trucks, tractors, special vehicles, buses), motorcycles, and moped-licensed vehicles (mopeds, motorized bicycles, mobility scooters)
+    - Regional breakdown: postal codes, municipalities, provinces, COROP areas, and national level
+    - Geographic attributes: municipality size class, urbanization level, and regional classifications
 
-    The vehicle population is based on the Vehicle Registration Database (RDW) and includes Dutch-registered vehicles that were allowed to participate in public road traffic during the previous year. Uninsured vehicles and vehicles in business inventory are excluded from the count.
+    The vehicle population includes only vehicles that were insured and allowed to participate in road traffic during the previous year. Vehicles in business inventory are excluded from the count.
 
-    Recent updates have improved the classification of hybrid electric vehicles, which may slightly adjust electric vehicle counts compared to previous versions.
+    This dataset provides comprehensive coverage of the Dutch motor vehicle fleet composition across different vehicle categories and geographical levels, enabling detailed analysis of regional transportation patterns.
 
-    Data available from: 2019
+    Data available from: 2019-2023
 
     Status of the figures:
-    The figures are updated annually and provide a comprehensive view of the Dutch passenger car fleet composition.
-
-    When will new figures be available?
-    Annually, typically updated in the second quarter of the year.
+    This dataset has been discontinued. The figures cover the period 2019-2023.
 
     """
     mo.md(description)
@@ -66,7 +62,7 @@ def _(mo):
 
 @app.cell
 def _(util):
-    data_source_url = "https://opendata.cbs.nl/ODataApi/OData/85237NED"
+    data_source_url = "https://opendata.cbs.nl/ODataApi/OData/85236NED"
 
     def get_metadata():
         metadata_df = util.get_cbs_url(data_source_url)
@@ -79,24 +75,24 @@ def _(util):
 
 @app.cell
 def _(mo):
-    mo.md(r"""### Construction Years""")
+    mo.md(r"""### Regions""")
     return
 
 
 @app.cell
 def _(get_metadata, util):
-    def get_construction_years():
-        # Get the URL for name == "Bouwjaar" from the metadata DataFrame
+    def get_regions():
+        # Get the URL for name == "RegioS" from the metadata DataFrame
         metadata_df = get_metadata()
-        construction_years_url = metadata_df.loc[metadata_df['name'] == 'Bouwjaar', 'url'].values[0]
+        regions_url = metadata_df.loc[metadata_df['name'] == 'RegioS', 'url'].values[0]
         # Fetch the data from the URL
-        construction_years_df = util.get_cbs_url(construction_years_url)
-        return construction_years_df
+        regions_df = util.get_cbs_url(regions_url)
+        return regions_df
 
-    construction_years_df = get_construction_years()
-    construction_years_df
+    regions_df = get_regions()
+    regions_df
 
-    return (construction_years_df,)
+    return (regions_df,)
 
 
 @app.cell
@@ -134,13 +130,7 @@ def _(get_metadata, util):
         # Fetch the data from the URL
         return util.get_cbs_url(data_properties_url)
 
-    def get_regions( df ):
-        # From the dataframe get all rows with a parent ID = 2 and return as an array of titles
-        regions = df[df['ParentID'] == 2]['Title'].tolist()
-        return regions
-
     data_properties_df = get_data_properties()
-    regions = get_regions(data_properties_df)
     data_properties_df
     return (data_properties_df,)
 
@@ -154,11 +144,43 @@ def _(mo):
 @app.cell
 def _(get_metadata, util):
     def get_typed_data_set():
+        import pandas as pd
         # Get the URL for name == "TypedDataSet" from the metadata DataFrame
         metadata_df = get_metadata()
         typed_data_set_url = metadata_df.loc[metadata_df['name'] == 'TypedDataSet', 'url'].values[0]
-        # Fetch the data from the URL
-        return util.get_cbs_url(typed_data_set_url)
+        
+        # Fetch data using pagination to get the complete dataset
+        # CBS API has a 10k record limit per request, so we'll use $skip and $top
+        page_size = 5000  # Use smaller pages for reliability
+        skip = 0
+        all_data = []
+        
+        while True:
+            paged_url = f"{typed_data_set_url}?$top={page_size}&$skip={skip}"
+            try:
+                page_df = util.get_cbs_url(paged_url)
+                if page_df.empty or len(page_df) == 0:
+                    break  # No more data
+                all_data.append(page_df)
+                skip += page_size
+                print(f"Fetched {len(page_df)} records (total so far: {skip})")
+                
+                # If we got fewer records than page_size, we've reached the end
+                if len(page_df) < page_size:
+                    break
+                    
+            except Exception as e:
+                print(f"Error fetching page at skip={skip}: {e}")
+                break
+        
+        if all_data:
+            # Combine all pages into a single DataFrame
+            complete_df = pd.concat(all_data, ignore_index=True)
+            print(f"Total records fetched: {len(complete_df)}")
+            return complete_df
+        else:
+            # Fallback to empty DataFrame
+            return pd.DataFrame()
 
     typed_data_set_df = get_typed_data_set()
     typed_data_set_df
@@ -179,9 +201,9 @@ def _(mo):
 
 @app.cell
 def _(
-    construction_years_df,
     data_properties_df,
     data_time_periods_df,
+    regions_df,
     typed_data_set_df,
     util,
 ):
@@ -189,18 +211,20 @@ def _(
         # Create a copy of the typed data set
         annotated_data_set_df = typed_data_set_df.copy()
 
-        # Map the construction year codes to their titles
-        construction_years_dict = {
-            row['Key']: row['Title'] for _, row in construction_years_df.iterrows()
+        # Map the region codes to their titles (only if RegioS column exists)
+        regions_dict = {
+            row['Key']: row['Title'] for _, row in regions_df.iterrows()
         }
-        annotated_data_set_df.loc[:,"Bouwjaar"] = annotated_data_set_df["Bouwjaar"].map(construction_years_dict)
+        if "RegioS" in annotated_data_set_df.columns:
+            annotated_data_set_df.loc[:,"RegioS"] = annotated_data_set_df["RegioS"].map(regions_dict)
 
-        # Map the period codes to their titles and convert to integers
+        # Map the period codes to their titles and convert to integers (only if Perioden column exists)
         periods_dict = {
             row['Key']: row['Title'] for _, row in data_time_periods_df.iterrows()
         }
-        annotated_data_set_df.loc[:,"Perioden"] = annotated_data_set_df["Perioden"].map(periods_dict)
-        annotated_data_set_df["Perioden"] = annotated_data_set_df["Perioden"].astype(int)
+        if "Perioden" in annotated_data_set_df.columns:
+            annotated_data_set_df.loc[:,"Perioden"] = annotated_data_set_df["Perioden"].map(periods_dict)
+            annotated_data_set_df["Perioden"] = annotated_data_set_df["Perioden"].astype(int)
 
         # Map data column names using DataProperties: Key -> "Title (Unit)" 
         # Only rename columns that exist in both the dataframe and DataProperties

@@ -12,13 +12,7 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-    # Netherlands - Personal vehicles: traffic performance of locally registered cars
-
-
-    """
-    )
+    mo.md(r"""# Netherlands - Personal vehicles: traffic performance of locally registered cars""")
     return
 
 
@@ -74,6 +68,24 @@ async def _(data_table_85405NED, mo):
 
 @app.cell
 def _(mo):
+    import data_table_85237NED
+    mo.md("### 85237NED")
+    return (data_table_85237NED,)
+
+
+@app.cell
+async def _(data_table_85237NED, mo):
+    async def import_data_table_85237NED():
+        result = await data_table_85237NED.app.embed()
+        return result
+
+    data_table_85237NED_result = await import_data_table_85237NED()
+    mo.md(data_table_85237NED_result.defs["description"])
+    return (data_table_85237NED_result,)
+
+
+@app.cell
+def _(mo):
     mo.md(r"""# National average km per year by fuel type""")
     return
 
@@ -118,9 +130,40 @@ def _(mo):
 
 
 @app.cell
-def _():
-    # 2. From dataset 85236NED: Motor vehicles active on January 1; vehicle type, region as of January 1, 2023 take the number of cars regiestered in your municipality.
+def _(data_table_85237NED_result, util):
+    # 2. From dataset 85236NED: Motor vehicles active on January 1; vehicle type, region as of January 1, 2023 take the number of cars registered in your municipality.
     # - Let Y = the number of cars registered in your municipality
+
+    def get_cars_registered(region, year="2023"):
+        """Get number of cars registered in a region for a given year."""
+        data_85237NED = data_table_85237NED_result.defs["annotated_data_set_df"]
+        data_85237NED = data_85237NED[data_85237NED["Construction Year (nan)"] == "Total all construction years"]
+        data_85237NED = data_85237NED[data_85237NED["Period (nan)"] == 2023]
+        # Filter the dataset for the specific municipality and year
+        title = util.translate(region)
+        column_label = f"{title} (number)"
+        if not data_85237NED.empty:
+            return data_85237NED[column_label].values[0]
+        else:
+            return None
+
+
+    registered_cars = {}
+    for region in data_table_85237NED_result.defs["regions"]:
+        registered_cars[region] = get_cars_registered(region)
+    registered_cars
+
+
+    return
+
+
+@app.cell
+def _():
+    # 3. From dataset 85237NED: Passenger cars active; vehicle characteristics, regions, January 1 
+    #  - Get the distribution of passenger cars per fuel type nationally.
+    #  - Let Z = the share of passenger cars of your fuel type.
+
+
 
 
     return
@@ -137,8 +180,8 @@ def _():
     import requests
     import json
     import pandas as pd
-
-    return
+    import util
+    return (util,)
 
 
 if __name__ == "__main__":
