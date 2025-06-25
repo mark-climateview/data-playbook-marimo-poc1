@@ -90,6 +90,7 @@ def _(get_metadata, util):
         return regions_df
 
     regions_df = get_regions()
+    regions = regions_df[regions_df['CategoryGroupID'].isin(range(1,17))]['Title'].tolist()
     regions_df
 
     return (regions_df,)
@@ -132,6 +133,7 @@ def _(get_metadata, util):
 
     data_properties_df = get_data_properties()
     data_properties_df
+
     return (data_properties_df,)
 
 
@@ -147,7 +149,7 @@ def _(get_metadata, util):
         # Get the URL for name == "TypedDataSet" from the metadata DataFrame
         metadata_df = get_metadata()
         typed_data_set_url = metadata_df.loc[metadata_df['name'] == 'TypedDataSet', 'url'].values[0]
-        
+
         # Use the new aggregate caching function for paginated datasets
         # This will cache the complete dataset with a clean filename
         return util.get_cbs_url_paginated(typed_data_set_url, page_size=5000)

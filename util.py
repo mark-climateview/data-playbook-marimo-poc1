@@ -165,14 +165,33 @@ translations = {
     "2451 kg en meer": "2451 kg and above",
     
     # 85236NED - Motor vehicles by type and region dataset
+    "ID": "ID",
     "Regio's": "Regions",
-    "Period": "Period",
     "Totaal wegvoertuigen": "Total Road Vehicles",
+    "Personenauto": "Passenger Car",
     "Totaal bedrijfsvoertuigen": "Total Commercial Vehicles",
     "Totaal bedrijfsmotorvoertuigen": "Total Commercial Motor Vehicles",
+    "Bestelauto": "Delivery Van",
+    "Vrachtauto (excl. trekker voor oplegger)": "Truck (excl. tractor for semi-trailer)",
+    "Trekker voor oplegger": "Tractor for semi-trailer",
+    "Speciaal voertuig": "Special vehicle",
+    "Bus": "Bus",
     "Totaal aanhangwagens en opleggers": "Total Trailers and Semi-trailers",
+    "Aanhangwagen": "Trailer",
+    "Oplegger": "Semi-trailer",
     "Motorfiets": "Motorcycle",
-    "Alle voertuigen met bromfietskenteken": "All Moped-licensed Vehicles"
+    "Alle voertuigen met bromfietskenteken": "All Moped-licensed Vehicles",
+    "Snorfiets": "Light moped",
+    "Bromfiets": "Moped",
+    "Brommobiel": "Moped car",
+    "Overige voertuigen met bromfietskenteken": "Other moped-licensed vehicles",
+    "Landsdeel": "Region",
+    "Provincie": "Province",
+    "Coropgebied": "COROP area",
+    "Gemeentecode": "Municipality code",
+    "Naam": "Name",
+    "Gemeente grootteklasse": "Municipality size class",
+    "Stedelijkheid van gemeenten": "Urbanization of municipalities"
 }
 
 def translate(src):
