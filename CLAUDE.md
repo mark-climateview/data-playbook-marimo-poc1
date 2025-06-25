@@ -15,9 +15,11 @@ Important notes and caveats:
 - The project uses intelligent caching for CBS data APIs (cache/ directory)
   - Use util.get_cbs_url_paginated() for large TypedDataSet endpoints
   - See CACHE_README.md for details
-- Use exporter2.py to create WASM-export-ready notebooks with inlined utilities
+- Use exporter2.py to create and publish WASM-export-ready notebooks with inlined utilities
   - Creates export-ready/ directory with self-contained notebooks
-  - Run: "uv run exporter2.py" then "marimo export html-wasm export_ready/<file> -o <output>"
+  - Automatically exports all notebooks to HTML-WASM format in output/ directory
+  - Generates index.html with navigation links to all published notebooks
+  - Run: "uv run exporter2.py" (complete publishing workflow)
 
 
 

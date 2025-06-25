@@ -5,6 +5,7 @@ Replaces 'from util import ...' cells with inlined util.py content.
 """
 
 import re
+import subprocess
 from pathlib import Path
 
 
@@ -100,6 +101,139 @@ def process_notebook(notebook_path):
     return '\n'.join(new_lines)
 
 
+def clean_output_directory():
+    """Remove existing HTML files from output directory."""
+    output_dir = Path('output')
+    if output_dir.exists():
+        # Remove all HTML files except index.html (we'll recreate it)
+        for html_file in output_dir.glob('*.html'):
+            if html_file.name != 'index.html':
+                print(f"Removing existing {html_file}")
+                html_file.unlink()
+        
+        # Remove index.html if it exists (we'll create a new simple one)
+        index_file = output_dir / 'index.html'
+        if index_file.exists():
+            print(f"Removing existing {index_file}")
+            index_file.unlink()
+
+
+def export_notebooks_to_html(notebooks):
+    """Export notebooks to HTML using marimo export command."""
+    output_dir = Path('output')
+    output_dir.mkdir(exist_ok=True)
+    
+    exported_files = []
+    
+    for notebook in notebooks:
+        export_ready_file = Path('export_ready') / notebook.name
+        output_file = output_dir / f"{notebook.stem}.html"
+        
+        print(f"Exporting {export_ready_file} to {output_file}...")
+        
+        try:
+            # Run marimo export command
+            cmd = [
+                'uv', 'run', 'marimo', 'export', 'html-wasm',
+                str(export_ready_file), '-o', str(output_file)
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            print(f"Successfully exported {output_file}")
+            exported_files.append(output_file)
+            
+        except subprocess.CalledProcessError as e:
+            print(f"Error exporting {notebook}: {e}")
+            print(f"Stdout: {e.stdout}")
+            print(f"Stderr: {e.stderr}")
+        except Exception as e:
+            print(f"Unexpected error exporting {notebook}: {e}")
+    
+    return exported_files
+
+
+def generate_index_html(exported_files):
+    """Generate a simple index.html file with links to exported notebooks."""
+    output_dir = Path('output')
+    index_file = output_dir / 'index.html'
+    
+    html_content = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Data Playbooks - Climate Data Netherlands</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.5rem;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            border-radius: 4px;
+        }
+        a {
+            text-decoration: none;
+            color: #2c3e50;
+            display: block;
+            font-weight: 500;
+        }
+        a:hover {
+            color: #3498db;
+        }
+        .description {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI Data Playbooks - Climate Data Netherlands</h1>
+    <p>Interactive data notebooks for climate data analysis and emission inventory modeling using the Transition Element Framework.</p>
+    
+    <ul>
+"""
+    
+    for html_file in sorted(exported_files):
+        # Extract a readable name from the filename
+        filename = html_file.name
+        display_name = filename.replace('.html', '').replace('_', ' ').title()
+        if 'Data Table' in display_name:
+            # Make CBS data table names more readable
+            display_name = display_name.replace('Data Table', 'CBS Data Table')
+        
+        html_content += f"""        <li>
+            <a href="{filename}">{display_name}</a>
+            <div class="description">Interactive notebook - Click to explore the data</div>
+        </li>
+"""
+    
+    html_content += """    </ul>
+</body>
+</html>"""
+    
+    with open(index_file, 'w') as f:
+        f.write(html_content)
+    
+    print(f"Generated {index_file}")
+
+
 def main():
     """Process all Marimo notebooks and create export-ready versions."""
     util_file = Path('util.py')
@@ -116,7 +250,7 @@ def main():
         try:
             with open(py_file, 'r') as f:
                 content = f.read()
-            if 'from util import' in content and 'marimo' in content:
+            if 'marimo' in content:
                 notebooks.append(py_file)
         except:
             continue
@@ -144,7 +278,21 @@ def main():
             print(f"Error processing {notebook}: {e}")
     
     print(f"\nExport-ready files in '{export_dir}/'")
-    print("Export with: marimo export html-wasm <file> -o <output>")
+    
+    # Clean output directory and export to HTML
+    print("\nCleaning output directory...")
+    clean_output_directory()
+    
+    print("\nExporting notebooks to HTML...")
+    exported_files = export_notebooks_to_html(notebooks)
+    
+    if exported_files:
+        print("\nGenerating index.html...")
+        generate_index_html(exported_files)
+        print(f"\nPublished {len(exported_files)} notebooks to 'output/' directory")
+        print("Open output/index.html in your browser to view all notebooks")
+    else:
+        print("\nNo notebooks were successfully exported")
 
 
 if __name__ == "__main__":

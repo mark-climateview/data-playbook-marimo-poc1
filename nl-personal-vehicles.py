@@ -118,12 +118,12 @@ def _(data_table_85236NED_result, pd):
     def get_cars_registered(region, year="2023"):
         """Get number of cars registered in a region for a given year."""
         data_85236NED = data_table_85236NED_result.defs["annotated_data_set_df"]
-        data_85236NED = data_85236NED[data_85236NED["Regions (None)"] == region]
-        data_85236NED = data_85236NED[data_85236NED["Period (None)"] == 2023]
+        data_85236NED = data_85236NED[data_85236NED["Regions"] == region]
+        data_85236NED = data_85236NED[data_85236NED["Period"] == 2023]
 
         # Filter the dataset for the specific municipality and year
         if not data_85236NED.empty:
-            return data_85236NED["Passenger Car (number)"].values[0]
+            return data_85236NED["Passenger Car"].values[0]
         else:
             return None
 
@@ -159,8 +159,8 @@ def _(data_table_85237NED_result, pd):
     def get_fuel_type_distribution(fuel_type_column, year="2023"):
         """Get number of cars registered in a region for a given year."""
         data_85237NED = data_table_85237NED_result.defs["annotated_data_set_df"]
-        data_85237NED = data_85237NED[data_85237NED["Construction Year (None)"] == "Total all construction years"]
-        data_85237NED = data_85237NED[data_85237NED["Period (None)"] == 2023]
+        data_85237NED = data_85237NED[data_85237NED["Construction Year"] == "Total all construction years"]
+        data_85237NED = data_85237NED[data_85237NED["Period"] == 2023]
 
         if not data_85237NED.empty:
             return data_85237NED[fuel_type_column].values[0]
@@ -168,13 +168,13 @@ def _(data_table_85237NED_result, pd):
             return None    
 
 
-    passenger_cars_distribution_total = get_fuel_type_distribution("Total (number)")
-    passenger_cars_distribution_petrol = get_fuel_type_distribution("Gasoline (number)") / passenger_cars_distribution_total
-    passenger_cars_distribution_diesel = get_fuel_type_distribution("Diesel (number)") / passenger_cars_distribution_total
-    passenger_cars_distribution_lpg = get_fuel_type_distribution("LPG (number)") / passenger_cars_distribution_total
-    passenger_cars_distribution_electricity = get_fuel_type_distribution("Electricity (number)") / passenger_cars_distribution_total
-    passenger_cars_distribution_cng = get_fuel_type_distribution("CNG (number)") / passenger_cars_distribution_total
-    passenger_cars_distribution_other_unknown = get_fuel_type_distribution("Other/Unknown (number)") / passenger_cars_distribution_total
+    passenger_cars_distribution_total = get_fuel_type_distribution("Total")
+    passenger_cars_distribution_petrol = get_fuel_type_distribution("Gasoline") / passenger_cars_distribution_total
+    passenger_cars_distribution_diesel = get_fuel_type_distribution("Diesel") / passenger_cars_distribution_total
+    passenger_cars_distribution_lpg = get_fuel_type_distribution("LPG") / passenger_cars_distribution_total
+    passenger_cars_distribution_electricity = get_fuel_type_distribution("Electricity") / passenger_cars_distribution_total
+    passenger_cars_distribution_cng = get_fuel_type_distribution("CNG") / passenger_cars_distribution_total
+    passenger_cars_distribution_other_unknown = get_fuel_type_distribution("Other/Unknown") / passenger_cars_distribution_total
 
     # convert the above set of distributions into a dataframe
     df = pd.DataFrame({

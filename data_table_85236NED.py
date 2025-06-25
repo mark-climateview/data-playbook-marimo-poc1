@@ -222,9 +222,10 @@ def _(
                 title = translate(row['Title'])
                 unit = translate(row['Unit'])
                 # If this title already exists, use the Key to make it unique
-                new_name = f"{title} ({unit})"
-                if new_name in properties_dict.values():
-                    new_name = f"{title} - {row['Key']} ({unit})"
+                new_name = title
+                #new_name = f"{title} ({unit})"
+                #if new_name in properties_dict.values():
+                #    new_name = f"{title} - {row['Key']} ({unit})"
                 properties_dict[row['Key']] = new_name
         annotated_data_set_df.rename(columns=properties_dict, inplace=True)
 
