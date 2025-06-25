@@ -11,6 +11,20 @@ def _():
 
 
 @app.cell
+def _():
+    import requests
+    import json
+    import pandas as pd
+    return
+
+
+@app.cell
+def _():
+    from util import get_cbs_url, translate, translations, get_cbs_url_paginated
+    return get_cbs_url, get_cbs_url_paginated, translate, translations
+
+
+@app.cell
 def _(mo):
     mo.md(r"""# 85236NED""")
     return
@@ -61,11 +75,11 @@ def _(mo):
 
 
 @app.cell
-def _(util):
+def _(get_cbs_url):
     data_source_url = "https://opendata.cbs.nl/ODataApi/OData/85236NED"
 
     def get_metadata():
-        metadata_df = util.get_cbs_url(data_source_url)
+        metadata_df = get_cbs_url(data_source_url)
         return metadata_df
 
     metadata_df = get_metadata()
@@ -80,13 +94,13 @@ def _(mo):
 
 
 @app.cell
-def _(get_metadata, util):
+def _(get_cbs_url, get_metadata):
     def get_regions():
         # Get the URL for name == "RegioS" from the metadata DataFrame
         metadata_df = get_metadata()
         regions_url = metadata_df.loc[metadata_df['name'] == 'RegioS', 'url'].values[0]
         # Fetch the data from the URL
-        regions_df = util.get_cbs_url(regions_url)
+        regions_df = get_cbs_url(regions_url)
         return regions_df
 
     regions_df = get_regions()
@@ -103,13 +117,13 @@ def _(mo):
 
 
 @app.cell
-def _(get_metadata, util):
+def _(get_cbs_url, get_metadata):
     def get_data_time_periods():
         # Get the data URL for name == "Perioden" from the metadata DataFrame
         metadata_df = get_metadata()
         time_periods_url = metadata_df.loc[metadata_df['name'] == 'Perioden', 'url'].values[0]
         # Fetch the data from the URL
-        return util.get_cbs_url(time_periods_url)
+        return get_cbs_url(time_periods_url)
 
     data_time_periods_df = get_data_time_periods()
     data_time_periods_df
@@ -123,13 +137,13 @@ def _(mo):
 
 
 @app.cell
-def _(get_metadata, util):
+def _(get_cbs_url, get_metadata):
     def get_data_properties():
         # Get the URL for name == "DataProperties" from the metadata DataFrame
         metadata_df = get_metadata()
         data_properties_url = metadata_df.loc[metadata_df['name'] == 'DataProperties', 'url'].values[0]
         # Fetch the data from the URL
-        return util.get_cbs_url(data_properties_url)
+        return get_cbs_url(data_properties_url)
 
     data_properties_df = get_data_properties()
     data_properties_df
@@ -144,7 +158,7 @@ def _(mo):
 
 
 @app.cell
-def _(get_metadata, util):
+def _(get_cbs_url_paginated, get_metadata):
     def get_typed_data_set():
         # Get the URL for name == "TypedDataSet" from the metadata DataFrame
         metadata_df = get_metadata()
@@ -152,7 +166,7 @@ def _(get_metadata, util):
 
         # Use the new aggregate caching function for paginated datasets
         # This will cache the complete dataset with a clean filename
-        return util.get_cbs_url_paginated(typed_data_set_url, page_size=5000)
+        return get_cbs_url_paginated(typed_data_set_url, page_size=5000)
 
     typed_data_set_df = get_typed_data_set()
     typed_data_set_df
@@ -176,8 +190,9 @@ def _(
     data_properties_df,
     data_time_periods_df,
     regions_df,
+    translate,
+    translations,
     typed_data_set_df,
-    util,
 ):
     def get_annotated_data_set():
         # Create a copy of the typed data set
@@ -204,8 +219,8 @@ def _(
         properties_dict = {}
         for _, row in data_properties_df.iterrows():
             if row['Key'] in annotated_data_set_df.columns:
-                title = util.translate(row['Title'])
-                unit = util.translate(row['Unit'])
+                title = translate(row['Title'])
+                unit = translate(row['Unit'])
                 # If this title already exists, use the Key to make it unique
                 new_name = f"{title} ({unit})"
                 if new_name in properties_dict.values():
@@ -213,29 +228,14 @@ def _(
                 properties_dict[row['Key']] = new_name
         annotated_data_set_df.rename(columns=properties_dict, inplace=True)
 
-        annotated_data_set_df.rename(columns=lambda x:util.translate(x), inplace=True)
-        annotated_data_set_df = annotated_data_set_df.replace(util.translations)
+        annotated_data_set_df.rename(columns=lambda x:translate(x), inplace=True)
+        annotated_data_set_df = annotated_data_set_df.replace(translations)
 
         return annotated_data_set_df
 
     annotated_data_set_df = get_annotated_data_set()
     annotated_data_set_df
     return
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""# Dependencies and Setup""")
-    return
-
-
-@app.cell
-def _():
-    import requests
-    import json
-    import pandas as pd
-    import util
-    return (util,)
 
 
 if __name__ == "__main__":

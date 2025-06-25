@@ -11,6 +11,20 @@ def _():
 
 
 @app.cell
+def _():
+    import requests
+    import json
+    import pandas as pd
+    return
+
+
+@app.cell
+def _():
+    from util import get_cbs_url, translate, translations, get_cbs_url_paginated
+    return get_cbs_url, translate, translations
+
+
+@app.cell
 def _(mo):
     mo.md(r"""# 85405NED""")
     return
@@ -65,11 +79,11 @@ def _(mo):
 
 
 @app.cell
-def _(util):
+def _(get_cbs_url):
     data_source_url = "https://opendata.cbs.nl/ODataApi/OData/85405NED"
 
     def get_metadata():
-        metadata_df = util.get_cbs_url(data_source_url)
+        metadata_df = get_cbs_url(data_source_url)
         return metadata_df
 
     metadata_df = get_metadata()
@@ -84,13 +98,13 @@ def _(mo):
 
 
 @app.cell
-def _(get_metadata, util):
+def _(get_cbs_url, get_metadata):
     def get_fuel_types():
         # Get the URL for name == ""BrandstofsoortVoertuig" from the metadata DataFrame
         metadata_df = get_metadata()
         fuel_types_url = metadata_df.loc[metadata_df['name'] == 'BrandstofsoortVoertuig', 'url'].values[0]
         # Fetch the data from the URL
-        fuel_types_df = util.get_cbs_url(fuel_types_url)
+        fuel_types_df = get_cbs_url(fuel_types_url)
         return fuel_types_df
 
     fuel_types_df = get_fuel_types()
@@ -106,13 +120,13 @@ def _(mo):
 
 
 @app.cell
-def _(get_metadata, util):
+def _(get_cbs_url, get_metadata):
     def get_vehicle_age_groups():
         # Get the URL for name == "LeeftijdVoertuig" from the metadata DataFrame
         metadata_df = get_metadata()
         age_groups_url = metadata_df.loc[metadata_df['name'] == 'LeeftijdVoertuig', 'url'].values[0]
         # Fetch the data from the URL
-        return util.get_cbs_url(age_groups_url)
+        return get_cbs_url(age_groups_url)
 
     vehicle_age_groups_df = get_vehicle_age_groups()
     vehicle_age_groups_df
@@ -126,13 +140,13 @@ def _(mo):
 
 
 @app.cell
-def _(get_metadata, util):
+def _(get_cbs_url, get_metadata):
     def get_data_time_periods():
         # Get the data URL for name == "Perioden" from the metadata DataFrame
         metadata_df = get_metadata()
         time_periods_url = metadata_df.loc[metadata_df['name'] == 'Perioden', 'url'].values[0]
         # Fetch the data from the URL
-        return util.get_cbs_url(time_periods_url)
+        return get_cbs_url(time_periods_url)
 
     data_time_periods_df = get_data_time_periods()
     data_time_periods_df
@@ -146,13 +160,13 @@ def _(mo):
 
 
 @app.cell
-def _(get_metadata, util):
+def _(get_cbs_url, get_metadata):
     def get_typed_data_set():
         # Get the URL for name == "TypedDataSet" from the metadata DataFrame
         metadata_df = get_metadata()
         typed_data_set_url = metadata_df.loc[metadata_df['name'] == 'TypedDataSet', 'url'].values[0]
         # Fetch the data from the URL
-        return util.get_cbs_url(typed_data_set_url)
+        return get_cbs_url(typed_data_set_url)
 
     typed_data_set_df = get_typed_data_set()
     typed_data_set_df
@@ -175,8 +189,9 @@ def _(mo):
 def _(
     data_time_periods_df,
     fuel_types_df,
+    translate,
+    translations,
     typed_data_set_df,
-    util,
     vehicle_age_groups_df,
 ):
     def get_annotated_data_set():
@@ -202,8 +217,8 @@ def _(
         annotated_data_set_df.loc[:,"Perioden"] = annotated_data_set_df["Perioden"].map(periods_dict)
         annotated_data_set_df["Perioden"] = annotated_data_set_df["Perioden"].astype(int)
 
-        annotated_data_set_df.rename(columns=lambda x:util.translate(x), inplace=True)
-        annotated_data_set_df = annotated_data_set_df.replace(util.translations)
+        annotated_data_set_df.rename(columns=lambda x:translate(x), inplace=True)
+        annotated_data_set_df = annotated_data_set_df.replace(translations)
 
 
         return annotated_data_set_df
@@ -211,21 +226,6 @@ def _(
     annotated_data_set_df = get_annotated_data_set()
     annotated_data_set_df
     return
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""# Dependencies and Setup""")
-    return
-
-
-@app.cell
-def _():
-    import requests
-    import json
-    import pandas as pd
-    import util
-    return (util,)
 
 
 if __name__ == "__main__":

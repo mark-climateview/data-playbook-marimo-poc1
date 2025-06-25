@@ -251,7 +251,7 @@ def _(
             number_fuel_types[region] = get_number_fuel_types(region)
         return number_fuel_types
 
-    
+
     number_fuel_types = get_number_fuel_types_all_regions()
 
     pd.DataFrame.from_dict(number_fuel_types, orient='index').reset_index().rename(columns={'index': 'Region'})
@@ -294,7 +294,7 @@ def _(
             "stock_personal_vehicles_hydrogen": 0, # this number is not available in the dataset, assuming 0
             "stock_personal_vehicles_natural_gas": number_fuel_types[region]["CNG"] * average_cng_km_per_year,
         }
-    
+
     def get_vehicle_operations_all_regions():
         vehicle_operations = {}
         for region in data_table_85236NED_result.defs["regions"]:
@@ -313,7 +313,6 @@ def _(
 def _(mo):
     mo.md(
         r"""
-
     ---
 
     ---

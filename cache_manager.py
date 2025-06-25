@@ -8,6 +8,12 @@ from typing import Optional, Dict, Any, Tuple
 import requests
 import re
 
+try:
+    import marimo as mo
+    _MARIMO_AVAILABLE = True
+except ImportError:
+    _MARIMO_AVAILABLE = False
+
 
 class CBSCacheManager:
     """
@@ -16,7 +22,21 @@ class CBSCacheManager:
     """
     
     def __init__(self, cache_dir: str = "./cache"):
-        self.cache_dir = Path(cache_dir)
+        # Use marimo notebook directory if available, otherwise fall back to current directory
+        if _MARIMO_AVAILABLE:
+            try:
+                base_dir = mo.notebook_dir()
+            except:
+                base_dir = Path.cwd()
+        else:
+            base_dir = Path.cwd()
+        
+        # If cache_dir is relative, make it relative to the notebook directory
+        if not Path(cache_dir).is_absolute():
+            self.cache_dir = base_dir / cache_dir
+        else:
+            self.cache_dir = Path(cache_dir)
+            
         self.metadata_dir = self.cache_dir / "metadata"
         self.data_dir = self.cache_dir / "data"
         

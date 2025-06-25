@@ -11,6 +11,20 @@ def _():
 
 
 @app.cell
+def _():
+    import requests
+    import json
+    import pandas as pd
+    return
+
+
+@app.cell
+def _():
+    from util import get_cbs_url, translate, translations
+    return get_cbs_url, translate, translations
+
+
+@app.cell
 def _(mo):
     mo.md(r"""# 85237NED""")
     return
@@ -65,11 +79,11 @@ def _(mo):
 
 
 @app.cell
-def _(util):
+def _(get_cbs_url):
     data_source_url = "https://opendata.cbs.nl/ODataApi/OData/85237NED"
 
     def get_metadata():
-        metadata_df = util.get_cbs_url(data_source_url)
+        metadata_df = get_cbs_url(data_source_url)
         return metadata_df
 
     metadata_df = get_metadata()
@@ -84,13 +98,13 @@ def _(mo):
 
 
 @app.cell
-def _(get_metadata, util):
+def _(get_cbs_url, get_metadata):
     def get_construction_years():
         # Get the URL for name == "Bouwjaar" from the metadata DataFrame
         metadata_df = get_metadata()
         construction_years_url = metadata_df.loc[metadata_df['name'] == 'Bouwjaar', 'url'].values[0]
         # Fetch the data from the URL
-        construction_years_df = util.get_cbs_url(construction_years_url)
+        construction_years_df = get_cbs_url(construction_years_url)
         return construction_years_df
 
     construction_years_df = get_construction_years()
@@ -106,13 +120,13 @@ def _(mo):
 
 
 @app.cell
-def _(get_metadata, util):
+def _(get_cbs_url, get_metadata):
     def get_data_time_periods():
         # Get the data URL for name == "Perioden" from the metadata DataFrame
         metadata_df = get_metadata()
         time_periods_url = metadata_df.loc[metadata_df['name'] == 'Perioden', 'url'].values[0]
         # Fetch the data from the URL
-        return util.get_cbs_url(time_periods_url)
+        return get_cbs_url(time_periods_url)
 
     data_time_periods_df = get_data_time_periods()
     data_time_periods_df
@@ -126,13 +140,13 @@ def _(mo):
 
 
 @app.cell
-def _(get_metadata, util):
+def _(get_cbs_url, get_metadata):
     def get_data_properties():
         # Get the URL for name == "DataProperties" from the metadata DataFrame
         metadata_df = get_metadata()
         data_properties_url = metadata_df.loc[metadata_df['name'] == 'DataProperties', 'url'].values[0]
         # Fetch the data from the URL
-        return util.get_cbs_url(data_properties_url)
+        return get_cbs_url(data_properties_url)
 
     def get_regions( df ):
         # From the dataframe get all rows with a parent ID = 2 and return as an array of titles
@@ -152,13 +166,13 @@ def _(mo):
 
 
 @app.cell
-def _(get_metadata, util):
+def _(get_cbs_url, get_metadata):
     def get_typed_data_set():
         # Get the URL for name == "TypedDataSet" from the metadata DataFrame
         metadata_df = get_metadata()
         typed_data_set_url = metadata_df.loc[metadata_df['name'] == 'TypedDataSet', 'url'].values[0]
         # Fetch the data from the URL
-        return util.get_cbs_url(typed_data_set_url)
+        return get_cbs_url(typed_data_set_url)
 
     typed_data_set_df = get_typed_data_set()
     typed_data_set_df
@@ -182,8 +196,9 @@ def _(
     construction_years_df,
     data_properties_df,
     data_time_periods_df,
+    translate,
+    translations,
     typed_data_set_df,
-    util,
 ):
     def get_annotated_data_set():
         # Create a copy of the typed data set
@@ -208,8 +223,8 @@ def _(
         properties_dict = {}
         for _, row in data_properties_df.iterrows():
             if row['Key'] in annotated_data_set_df.columns:
-                title = util.translate(row['Title'])
-                unit = util.translate(row['Unit'])
+                title = translate(row['Title'])
+                unit = translate(row['Unit'])
                 # If this title already exists, use the Key to make it unique
                 new_name = f"{title} ({unit})"
                 if new_name in properties_dict.values():
@@ -217,66 +232,13 @@ def _(
                 properties_dict[row['Key']] = new_name
         annotated_data_set_df.rename(columns=properties_dict, inplace=True)
 
-        annotated_data_set_df.rename(columns=lambda x:util.translate(x), inplace=True)
-        annotated_data_set_df = annotated_data_set_df.replace(util.translations)
+        annotated_data_set_df.rename(columns=lambda x:translate(x), inplace=True)
+        annotated_data_set_df = annotated_data_set_df.replace(translations)
 
         return annotated_data_set_df
 
     annotated_data_set_df = get_annotated_data_set()
     annotated_data_set_df
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""# Dependencies and Setup""")
-    return
-
-
-@app.cell
-def _():
-    import requests
-    import json
-    import pandas as pd
-    import util
-    return (util,)
-
-
-@app.cell
-def _(mo):
-    mo.md(
-        r"""
-    ## Cache Management
-
-    The data is now cached locally for faster loading. Use the functions below to manage the cache:
-    """
-    )
-    return
-
-
-@app.cell
-def _(mo, util):
-    # Cache management controls
-    def show_cache_stats():
-        stats = util.get_cache_stats()
-        return f"""
-        **Cache Statistics:**
-        - Metadata files: {stats['metadata_files']}
-        - Data files: {stats['data_files']}
-        - Total size: {stats['total_size_mb']} MB
-        - Cache directory: {stats['cache_dir']}
-        """
-
-    def clear_cache():
-        util.invalidate_cache()
-        return "✅ All cache cleared"
-
-    def clear_dataset_cache():
-        util.invalidate_cache("https://opendata.cbs.nl/ODataApi/OData/85237NED")
-        return "✅ Cache cleared for dataset 85237NED"
-
-    # Display cache stats
-    mo.md(show_cache_stats())
     return
 
 
