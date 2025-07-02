@@ -339,7 +339,8 @@ async def _(data_table_85405NED, mo):
     data_table_85405NED_result = await import_data_table_85405NED()
     # data_table_85405NED_result.output
     mo.md(data_table_85405NED_result.defs["description"])
-
+    for k in data_table_85405NED_result.defs.keys():
+        print(k)
     return (data_table_85405NED_result,)
 
 
@@ -384,6 +385,7 @@ def _():
     import requests
     import json
     import pandas as pd
+    import fastparquet
     import util
     return (pd,)
 
