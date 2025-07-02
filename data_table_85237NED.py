@@ -15,7 +15,7 @@ def _():
     import requests
     import json
     import pandas as pd
-    import fastparquet
+    import pyarrow
     return
 
 
