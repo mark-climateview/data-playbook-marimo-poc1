@@ -335,7 +335,7 @@ def get_cbs_url(url: str, force_refresh: bool = False) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def get_cbs_url_paginated(url: str, force_refresh: bool = False, max_pages: int = 100) -> pd.DataFrame:
+def get_cbs_url_paginated(url: str, force_refresh: bool = False, max_pages: int = 100, page_size: int = 5000) -> pd.DataFrame:
     """
     Fetch paginated data from CBS API URL and return as DataFrame.
     
@@ -343,16 +343,21 @@ def get_cbs_url_paginated(url: str, force_refresh: bool = False, max_pages: int 
         url: CBS OData API URL
         force_refresh: Whether to ignore cache (not used in this simple implementation)
         max_pages: Maximum number of pages to fetch
+        page_size: Number of records per page (max 10000, recommended 5000)
     
     Returns:
         pandas.DataFrame: The combined paginated data
     """
     all_data = []
-    current_url = url
     page_count = 0
+    skip = 0
     
     try:
-        while current_url and page_count < max_pages:
+        while page_count < max_pages:
+            # Add OData pagination parameters
+            separator = '&' if '?' in url else '?'
+            current_url = f"{url}{separator}$skip={skip}&$top={page_size}"
+            
             print(f"Fetching page {page_count + 1}: {current_url}")
             response = requests.get(current_url, timeout=60)
             response.raise_for_status()
@@ -360,15 +365,14 @@ def get_cbs_url_paginated(url: str, force_refresh: bool = False, max_pages: int 
             data = response.json()
             
             if 'value' in data and data['value']:
-                all_data.extend(data['value'])
+                page_data = data['value']
+                all_data.extend(page_data)
                 page_count += 1
+                skip += len(page_data)
                 
-                # Check for next page
-                current_url = data.get('odata.nextLink') or data.get('@odata.nextLink')
-                if current_url and not current_url.startswith('http'):
-                    # Handle relative URLs
-                    base_url = url.split('?')[0] if '?' in url else url
-                    current_url = f"{base_url}?{current_url.split('?')[1]}" if '?' in current_url else current_url
+                # If we got fewer records than requested, we've reached the end
+                if len(page_data) < page_size:
+                    break
                 
                 # Small delay between requests
                 time.sleep(0.5)
