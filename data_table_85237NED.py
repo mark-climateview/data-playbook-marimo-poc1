@@ -20,8 +20,8 @@ def _():
 
 @app.cell
 def _():
-    from util import get_cbs_url, translate, translations
-    return get_cbs_url, translate, translations
+    from util import translate, translations, get_local_data
+    return translate, translations, get_local_data
 
 
 @app.cell
@@ -79,11 +79,10 @@ def _(mo):
 
 
 @app.cell
-def _(get_cbs_url):
-    data_source_url = "https://opendata.cbs.nl/ODataApi/OData/85237NED"
-
+def _(get_local_data):
     def get_metadata():
-        metadata_df = get_cbs_url(data_source_url)
+        # Load metadata from local data folder
+        metadata_df = get_local_data("85237NED")  # Base dataset metadata
         return metadata_df
 
     metadata_df = get_metadata()
@@ -98,13 +97,10 @@ def _(mo):
 
 
 @app.cell
-def _(get_cbs_url, get_metadata):
+def _(get_local_data):
     def get_construction_years():
-        # Get the URL for name == "Bouwjaar" from the metadata DataFrame
-        metadata_df = get_metadata()
-        construction_years_url = metadata_df.loc[metadata_df['name'] == 'Bouwjaar', 'url'].values[0]
-        # Fetch the data from the URL
-        construction_years_df = get_cbs_url(construction_years_url)
+        # Load construction years data from local data folder
+        construction_years_df = get_local_data("85237NED", "Bouwjaar")
         return construction_years_df
 
     construction_years_df = get_construction_years()
@@ -120,13 +116,10 @@ def _(mo):
 
 
 @app.cell
-def _(get_cbs_url, get_metadata):
+def _(get_local_data):
     def get_data_time_periods():
-        # Get the data URL for name == "Perioden" from the metadata DataFrame
-        metadata_df = get_metadata()
-        time_periods_url = metadata_df.loc[metadata_df['name'] == 'Perioden', 'url'].values[0]
-        # Fetch the data from the URL
-        return get_cbs_url(time_periods_url)
+        # Load time periods data from local data folder
+        return get_local_data("85237NED", "Perioden")
 
     data_time_periods_df = get_data_time_periods()
     data_time_periods_df
@@ -140,13 +133,10 @@ def _(mo):
 
 
 @app.cell
-def _(get_cbs_url, get_metadata):
+def _(get_local_data):
     def get_data_properties():
-        # Get the URL for name == "DataProperties" from the metadata DataFrame
-        metadata_df = get_metadata()
-        data_properties_url = metadata_df.loc[metadata_df['name'] == 'DataProperties', 'url'].values[0]
-        # Fetch the data from the URL
-        return get_cbs_url(data_properties_url)
+        # Load data properties from local data folder
+        return get_local_data("85237NED", "DataProperties")
 
     def get_regions( df ):
         # From the dataframe get all rows with a parent ID = 2 and return as an array of titles
@@ -166,13 +156,10 @@ def _(mo):
 
 
 @app.cell
-def _(get_cbs_url, get_metadata):
+def _(get_local_data):
     def get_typed_data_set():
-        # Get the URL for name == "TypedDataSet" from the metadata DataFrame
-        metadata_df = get_metadata()
-        typed_data_set_url = metadata_df.loc[metadata_df['name'] == 'TypedDataSet', 'url'].values[0]
-        # Fetch the data from the URL
-        return get_cbs_url(typed_data_set_url)
+        # Load complete typed dataset from local data folder
+        return get_local_data("85237NED", "TypedDataSet")
 
     typed_data_set_df = get_typed_data_set()
     typed_data_set_df

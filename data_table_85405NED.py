@@ -20,8 +20,8 @@ def _():
 
 @app.cell
 def _():
-    from util import get_cbs_url, translate, translations, get_cbs_url_paginated
-    return get_cbs_url, translate, translations
+    from util import translate, translations, get_local_data
+    return translate, translations, get_local_data
 
 
 @app.cell
@@ -79,11 +79,10 @@ def _(mo):
 
 
 @app.cell
-def _(get_cbs_url):
-    data_source_url = "https://opendata.cbs.nl/ODataApi/OData/85405NED"
-
+def _(get_local_data):
     def get_metadata():
-        metadata_df = get_cbs_url(data_source_url)
+        # Load metadata from local data folder
+        metadata_df = get_local_data("85405NED")  # Base dataset metadata
         return metadata_df
 
     metadata_df = get_metadata()
@@ -98,13 +97,10 @@ def _(mo):
 
 
 @app.cell
-def _(get_cbs_url, get_metadata):
+def _(get_local_data):
     def get_fuel_types():
-        # Get the URL for name == ""BrandstofsoortVoertuig" from the metadata DataFrame
-        metadata_df = get_metadata()
-        fuel_types_url = metadata_df.loc[metadata_df['name'] == 'BrandstofsoortVoertuig', 'url'].values[0]
-        # Fetch the data from the URL
-        fuel_types_df = get_cbs_url(fuel_types_url)
+        # Load fuel types data from local data folder
+        fuel_types_df = get_local_data("85405NED", "BrandstofsoortVoertuig")
         return fuel_types_df
 
     fuel_types_df = get_fuel_types()
@@ -120,13 +116,10 @@ def _(mo):
 
 
 @app.cell
-def _(get_cbs_url, get_metadata):
+def _(get_local_data):
     def get_vehicle_age_groups():
-        # Get the URL for name == "LeeftijdVoertuig" from the metadata DataFrame
-        metadata_df = get_metadata()
-        age_groups_url = metadata_df.loc[metadata_df['name'] == 'LeeftijdVoertuig', 'url'].values[0]
-        # Fetch the data from the URL
-        return get_cbs_url(age_groups_url)
+        # Load vehicle age groups data from local data folder
+        return get_local_data("85405NED", "LeeftijdVoertuig")
 
     vehicle_age_groups_df = get_vehicle_age_groups()
     vehicle_age_groups_df
@@ -140,13 +133,10 @@ def _(mo):
 
 
 @app.cell
-def _(get_cbs_url, get_metadata):
+def _(get_local_data):
     def get_data_time_periods():
-        # Get the data URL for name == "Perioden" from the metadata DataFrame
-        metadata_df = get_metadata()
-        time_periods_url = metadata_df.loc[metadata_df['name'] == 'Perioden', 'url'].values[0]
-        # Fetch the data from the URL
-        return get_cbs_url(time_periods_url)
+        # Load time periods data from local data folder
+        return get_local_data("85405NED", "Perioden")
 
     data_time_periods_df = get_data_time_periods()
     data_time_periods_df
@@ -160,13 +150,10 @@ def _(mo):
 
 
 @app.cell
-def _(get_cbs_url, get_metadata):
+def _(get_local_data):
     def get_typed_data_set():
-        # Get the URL for name == "TypedDataSet" from the metadata DataFrame
-        metadata_df = get_metadata()
-        typed_data_set_url = metadata_df.loc[metadata_df['name'] == 'TypedDataSet', 'url'].values[0]
-        # Fetch the data from the URL
-        return get_cbs_url(typed_data_set_url)
+        # Load complete typed dataset from local data folder
+        return get_local_data("85405NED", "TypedDataSet")
 
     typed_data_set_df = get_typed_data_set()
     typed_data_set_df

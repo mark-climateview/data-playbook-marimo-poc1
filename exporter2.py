@@ -6,6 +6,7 @@ Replaces 'from util import ...' cells with inlined util.py content.
 
 import re
 import subprocess
+import shutil
 from pathlib import Path
 
 
@@ -62,10 +63,10 @@ def create_inlined_util_cell():
         else:
             indented_lines.append('    ' + line)  # Indent by 4 spaces
     
-    # Create the replacement cell
+    # Create the replacement cell with local data functions only
     cell_content = '@app.cell\ndef _(mo):\n    # Utility functions (inlined from util.py)\n'
     cell_content += ''.join(indented_lines)
-    cell_content += '\n    return translate, get_cbs_url, get_cbs_url_paginated, invalidate_cache, get_cache_stats, cleanup_fragmented_cache\n'
+    cell_content += '\n    return translate, get_local_data, get_data_file_path, list_available_data, check_data_availability\n'
     
     return cell_content
 
@@ -150,6 +151,30 @@ def export_notebooks_to_html(notebooks):
             print(f"Unexpected error exporting {notebook}: {e}")
     
     return exported_files
+
+
+def copy_data_folder(destination_dir):
+    """Copy the data/ folder to the destination directory."""
+    source_data = Path('data')
+    if not source_data.exists():
+        print("Warning: data/ folder not found - notebooks may not work without data")
+        return False
+    
+    dest_data = destination_dir / 'data'
+    
+    if dest_data.exists():
+        print(f"Removing existing data folder at {dest_data}")
+        shutil.rmtree(dest_data)
+    
+    print(f"Copying data/ folder to {dest_data}")
+    shutil.copytree(source_data, dest_data)
+    
+    # Count files and calculate size
+    data_files = list(dest_data.glob('*.parquet'))
+    total_size = sum(f.stat().st_size for f in data_files) / (1024 * 1024)
+    print(f"Copied {len(data_files)} data files ({total_size:.2f} MB)")
+    
+    return True
 
 
 def generate_index_html(exported_files):
@@ -263,6 +288,10 @@ def main():
     export_dir = Path('export_ready')
     export_dir.mkdir(exist_ok=True)
     
+    # Copy data folder to export_ready directory
+    print("Copying data/ folder to export_ready/...")
+    copy_data_folder(export_dir)
+    
     # Process each notebook
     for notebook in notebooks:
         print(f"Processing {notebook}...")
@@ -282,6 +311,12 @@ def main():
     # Clean output directory and export to HTML
     print("\nCleaning output directory...")
     clean_output_directory()
+    
+    # Copy data folder to output directory for HTML exports
+    output_dir = Path('output')
+    output_dir.mkdir(exist_ok=True)
+    print("Copying data/ folder to output/...")
+    copy_data_folder(output_dir)
     
     print("\nExporting notebooks to HTML...")
     exported_files = export_notebooks_to_html(notebooks)

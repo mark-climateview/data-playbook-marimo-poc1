@@ -20,12 +20,12 @@ def _():
 
 @app.cell
 def _():
-    from util import get_cbs_url, translate, translations, get_cbs_url_paginated
-    return get_cbs_url, get_cbs_url_paginated, translate, translations
+    from util import translate, translations, get_local_data
+    return translate, translations, get_local_data
 
 
 @app.cell
-def _(mo):
+def _(mo):    
     mo.md(r"""# 85236NED""")
     return
 
@@ -75,11 +75,10 @@ def _(mo):
 
 
 @app.cell
-def _(get_cbs_url):
-    data_source_url = "https://opendata.cbs.nl/ODataApi/OData/85236NED"
-
+def _(get_local_data):
     def get_metadata():
-        metadata_df = get_cbs_url(data_source_url)
+        # Load metadata from local data folder
+        metadata_df = get_local_data("85236NED")  # Base dataset metadata
         return metadata_df
 
     metadata_df = get_metadata()
@@ -94,13 +93,10 @@ def _(mo):
 
 
 @app.cell
-def _(get_cbs_url, get_metadata):
+def _(get_local_data):
     def get_regions():
-        # Get the URL for name == "RegioS" from the metadata DataFrame
-        metadata_df = get_metadata()
-        regions_url = metadata_df.loc[metadata_df['name'] == 'RegioS', 'url'].values[0]
-        # Fetch the data from the URL
-        regions_df = get_cbs_url(regions_url)
+        # Load regions data from local data folder
+        regions_df = get_local_data("85236NED", "RegioS")
         return regions_df
 
     regions_df = get_regions()
@@ -117,13 +113,10 @@ def _(mo):
 
 
 @app.cell
-def _(get_cbs_url, get_metadata):
+def _(get_local_data):
     def get_data_time_periods():
-        # Get the data URL for name == "Perioden" from the metadata DataFrame
-        metadata_df = get_metadata()
-        time_periods_url = metadata_df.loc[metadata_df['name'] == 'Perioden', 'url'].values[0]
-        # Fetch the data from the URL
-        return get_cbs_url(time_periods_url)
+        # Load time periods data from local data folder
+        return get_local_data("85236NED", "Perioden")
 
     data_time_periods_df = get_data_time_periods()
     data_time_periods_df
@@ -137,13 +130,10 @@ def _(mo):
 
 
 @app.cell
-def _(get_cbs_url, get_metadata):
+def _(get_local_data):
     def get_data_properties():
-        # Get the URL for name == "DataProperties" from the metadata DataFrame
-        metadata_df = get_metadata()
-        data_properties_url = metadata_df.loc[metadata_df['name'] == 'DataProperties', 'url'].values[0]
-        # Fetch the data from the URL
-        return get_cbs_url(data_properties_url)
+        # Load data properties from local data folder
+        return get_local_data("85236NED", "DataProperties")
 
     data_properties_df = get_data_properties()
     data_properties_df
@@ -158,15 +148,10 @@ def _(mo):
 
 
 @app.cell
-def _(get_cbs_url_paginated, get_metadata):
+def _(get_local_data):
     def get_typed_data_set():
-        # Get the URL for name == "TypedDataSet" from the metadata DataFrame
-        metadata_df = get_metadata()
-        typed_data_set_url = metadata_df.loc[metadata_df['name'] == 'TypedDataSet', 'url'].values[0]
-
-        # Use the new aggregate caching function for paginated datasets
-        # This will cache the complete dataset with a clean filename
-        return get_cbs_url_paginated(typed_data_set_url, page_size=5000)
+        # Load complete typed dataset from local data folder
+        return get_local_data("85236NED", "TypedDataSet")
 
     typed_data_set_df = get_typed_data_set()
     typed_data_set_df

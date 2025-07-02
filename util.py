@@ -1,320 +1,12 @@
-import requests
-import json
 import pandas as pd
-import os
-import hashlib
 from pathlib import Path
-from datetime import datetime
-from typing import Optional, Dict, Any, Tuple
-import re
+from typing import Optional, List, Dict, Any
 
 try:
     import marimo as mo
     _MARIMO_AVAILABLE = True
 except ImportError:
     _MARIMO_AVAILABLE = False
-
-
-class CBSCacheManager:
-    """
-    Intelligent caching system for CBS OData API responses.
-    Uses timestamp-based validation to only refetch when source data changes.
-    """
-    
-    def __init__(self, cache_dir: str = "./cache"):
-        # Use marimo notebook directory if available, otherwise fall back to current directory
-        if _MARIMO_AVAILABLE:
-            try:
-                base_dir = mo.notebook_dir()
-            except:
-                base_dir = Path.cwd()
-        else:
-            base_dir = Path.cwd()
-        
-        # If cache_dir is relative, make it relative to the notebook directory
-        if not Path(cache_dir).is_absolute():
-            self.cache_dir = base_dir / cache_dir
-        else:
-            self.cache_dir = Path(cache_dir)
-            
-        self.metadata_dir = self.cache_dir / "metadata"
-        self.data_dir = self.cache_dir / "data"
-        
-        # Create cache directories
-        self.metadata_dir.mkdir(parents=True, exist_ok=True)
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-    
-    def _get_dataset_id(self, url: str) -> str:
-        """Extract dataset ID from CBS OData URL."""
-        # Extract dataset ID from URL like https://opendata.cbs.nl/ODataApi/OData/85237NED
-        # Handle endpoint-specific URLs like .../85237NED/Bouwjaar
-        parts = url.rstrip('/').split('/')
-        if len(parts) >= 6:  # .../ODataApi/OData/DATASET/endpoint
-            dataset_part = parts[5]  # The dataset ID part
-            if dataset_part and dataset_part[0].isdigit():  # Dataset IDs start with numbers
-                return dataset_part
-        return parts[-1]
-    
-    def _is_paginated_url(self, url: str) -> bool:
-        """Check if URL contains pagination parameters."""
-        return '$top' in url and '$skip' in url
-    
-    def _get_base_url_without_pagination(self, url: str) -> str:
-        """Remove pagination parameters from URL."""
-        return url.split('?')[0] if '?' in url else url
-    
-    def _get_cache_key(self, url: str) -> str:
-        """Generate cache key from URL."""
-        # Use URL path for readable cache keys
-        dataset_id = self._get_dataset_id(url)
-        
-        # For paginated URLs, ignore pagination params and use base endpoint
-        if self._is_paginated_url(url):
-            base_url = self._get_base_url_without_pagination(url)
-            url_parts = base_url.rstrip('/').split('/')
-            if len(url_parts) >= 7:  # .../ODataApi/OData/DATASET/endpoint
-                endpoint = url_parts[6]
-                return f"{dataset_id}_{endpoint}"
-            else:
-                return dataset_id
-        
-        # Extract endpoint from URL if present
-        url_parts = url.rstrip('/').split('/')
-        if len(url_parts) >= 7:  # .../ODataApi/OData/DATASET/endpoint
-            endpoint = url_parts[6]
-            cache_key = f"{dataset_id}_{endpoint}"
-        else:
-            cache_key = dataset_id
-            
-        # Add query hash for non-paginated queries
-        if '?' in url:
-            query_hash = hashlib.md5(url.split('?')[1].encode()).hexdigest()[:8]
-            cache_key += f"_{query_hash}"
-            
-        return cache_key
-    
-    def _get_table_info_url(self, base_url: str) -> str:
-        """Get TableInfos URL from base dataset URL."""
-        dataset_id = self._get_dataset_id(base_url)
-        return f"https://opendata.cbs.nl/ODataApi/OData/{dataset_id}/TableInfos"
-    
-    def _fetch_table_info(self, base_url: str) -> Optional[Dict[str, Any]]:
-        """Fetch TableInfos metadata for timestamp validation."""
-        try:
-            table_info_url = self._get_table_info_url(base_url)
-            response = requests.get(table_info_url, timeout=30)
-            response.raise_for_status()
-            
-            data = response.json()
-            if 'value' in data and len(data['value']) > 0:
-                return data['value'][0]  # First (and usually only) table info
-            return None
-        except Exception as e:
-            print(f"Warning: Could not fetch TableInfos for {base_url}: {e}")
-            return None
-    
-    def _parse_timestamp(self, timestamp_str: str) -> Optional[datetime]:
-        """Parse CBS timestamp format to datetime object."""
-        try:
-            # CBS uses format like "2025-02-28T02:00:00"
-            return datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-        except Exception:
-            return None
-    
-    def _get_cached_metadata_path(self, base_url: str) -> Path:
-        """Get path for cached TableInfos metadata."""
-        dataset_id = self._get_dataset_id(base_url)
-        return self.metadata_dir / f"{dataset_id}_tableinfo.json"
-    
-    def _get_cached_data_path(self, url: str) -> Path:
-        """Get path for cached data file."""
-        cache_key = self._get_cache_key(url)
-        return self.data_dir / f"{cache_key}.parquet"
-    
-    def _load_cached_metadata(self, base_url: str) -> Optional[Dict[str, Any]]:
-        """Load cached TableInfos metadata."""
-        metadata_path = self._get_cached_metadata_path(base_url)
-        if metadata_path.exists():
-            try:
-                with open(metadata_path, 'r') as f:
-                    return json.load(f)
-            except Exception:
-                pass
-        return None
-    
-    def _save_cached_metadata(self, base_url: str, metadata: Dict[str, Any]) -> None:
-        """Save TableInfos metadata to cache."""
-        metadata_path = self._get_cached_metadata_path(base_url)
-        try:
-            with open(metadata_path, 'w') as f:
-                json.dump(metadata, f, indent=2)
-        except Exception as e:
-            print(f"Warning: Could not save metadata cache: {e}")
-    
-    def _get_base_dataset_url(self, url: str) -> str:
-        """Get base dataset URL from any endpoint-specific URL."""
-        # For URLs like https://opendata.cbs.nl/ODataApi/OData/85237NED/Bouwjaar
-        # Return https://opendata.cbs.nl/ODataApi/OData/85237NED
-        dataset_id = self._get_dataset_id(url)
-        return f"https://opendata.cbs.nl/ODataApi/OData/{dataset_id}"
-        
-    def _is_cache_valid(self, url: str, force_refresh: bool = False) -> bool:
-        """
-        Check if cached data is still valid by comparing timestamps.
-        Returns True if cache is valid, False if needs refresh.
-        """
-        if force_refresh:
-            return False
-        
-        # Check if cached data file exists
-        cached_data_path = self._get_cached_data_path(url)
-        if not cached_data_path.exists():
-            return False
-        
-        # Get base dataset URL for timestamp comparison
-        base_url = self._get_base_dataset_url(url)
-        
-        # Get current and cached metadata
-        current_metadata = self._fetch_table_info(base_url)
-        cached_metadata = self._load_cached_metadata(base_url)
-        
-        if not current_metadata:
-            return False
-            
-        if not cached_metadata:
-            self._save_cached_metadata(base_url, current_metadata)
-            return False
-        
-        # Compare Modified timestamps
-        current_modified = current_metadata.get('Modified')
-        cached_modified = cached_metadata.get('Modified')
-        
-        if not current_modified or not cached_modified:
-            return False
-        
-        # Update cached metadata if current is newer
-        if current_modified != cached_modified:
-            self._save_cached_metadata(base_url, current_metadata)
-            return False
-        
-        return True
-    
-    def get_cached_data(self, url: str, force_refresh: bool = False) -> Optional[pd.DataFrame]:
-        """
-        Retrieve data from cache if valid, otherwise return None.
-        For paginated URLs, returns complete dataset if cached.
-        """
-        if not self._is_cache_valid(url, force_refresh):
-            return None
-        
-        cached_data_path = self._get_cached_data_path(url)
-        try:
-            df = pd.read_parquet(cached_data_path)
-            return df
-        except Exception as e:
-            print(f"Warning: Could not load cached data from {cached_data_path}: {e}")
-            return None
-    
-    def save_data_to_cache(self, url: str, df: pd.DataFrame) -> None:
-        """Save DataFrame to cache using Parquet format."""
-        cached_data_path = self._get_cached_data_path(url)
-        try:
-            df.to_parquet(cached_data_path, index=False)
-            print(f"Cached data saved to {cached_data_path}")
-        except Exception as e:
-            print(f"Warning: Could not save data to cache: {e}")
-    
-    def invalidate_cache(self, url: str = None) -> None:
-        """
-        Invalidate cache for specific dataset or all cached data.
-        """
-        if url:
-            # Invalidate specific dataset
-            dataset_id = self._get_dataset_id(url)
-            
-            # Remove metadata cache
-            metadata_path = self._get_cached_metadata_path(url)
-            if metadata_path.exists():
-                metadata_path.unlink()
-            
-            # Remove all data caches for this dataset
-            for data_file in self.data_dir.glob(f"{dataset_id}*"):
-                data_file.unlink()
-            
-            print(f"Cache invalidated for dataset {dataset_id}")
-        else:
-            # Invalidate all caches
-            for metadata_file in self.metadata_dir.glob("*"):
-                metadata_file.unlink()
-            for data_file in self.data_dir.glob("*"):
-                data_file.unlink()
-            print("All caches invalidated")
-    
-    def cleanup_fragmented_cache(self, dataset_id: str = None) -> int:
-        """
-        Clean up fragmented cache files from paginated requests.
-        Returns number of files cleaned up.
-        """
-        cleaned_count = 0
-        pattern = r'.*\$top=\d+.*\$skip=\d+.*\.parquet$'
-        
-        for cache_file in self.data_dir.glob("*.parquet"):
-            # Match fragmented cache files
-            if re.match(pattern, cache_file.name):
-                # If dataset_id specified, only clean files for that dataset
-                if dataset_id is None or cache_file.name.startswith(dataset_id):
-                    cache_file.unlink()
-                    cleaned_count += 1
-                    print(f"Cleaned up fragmented cache: {cache_file.name}")
-        
-        return cleaned_count
-    
-    def is_aggregate_caching_candidate(self, url: str) -> bool:
-        """
-        Check if this URL should use aggregate caching (for large paginated datasets).
-        Currently applies to TypedDataSet endpoints with pagination.
-        """
-        return (self._is_paginated_url(url) and 
-                'TypedDataSet' in url and
-                '$skip=0' in url)  # Only trigger on first page
-    
-    def save_aggregated_data_to_cache(self, base_url: str, df: pd.DataFrame) -> None:
-        """
-        Save complete aggregated DataFrame to cache using clean cache key.
-        Used for paginated datasets that have been fully fetched and combined.
-        """
-        cache_key = self._get_cache_key(base_url)
-        cached_data_path = self.data_dir / f"{cache_key}.parquet"
-        
-        try:
-            df.to_parquet(cached_data_path, index=False)
-            print(f"Cached complete dataset to {cached_data_path}")
-            
-            # Clean up any existing fragmented cache files for this dataset
-            dataset_id = self._get_dataset_id(base_url)
-            self.cleanup_fragmented_cache(dataset_id)
-            
-        except Exception as e:
-            print(f"Warning: Could not save aggregated data to cache: {e}")
-
-    def get_cache_stats(self) -> Dict[str, Any]:
-        """Get cache statistics."""
-        metadata_files = list(self.metadata_dir.glob("*.json"))
-        data_files = list(self.data_dir.glob("*.parquet"))
-        
-        # Count fragmented files separately
-        fragmented_files = [f for f in data_files if re.match(r'.*\$top=\d+.*\$skip=\d+.*\.parquet$', f.name)]
-        clean_files = [f for f in data_files if f not in fragmented_files]
-        
-        total_size = sum(f.stat().st_size for f in data_files + metadata_files)
-        
-        return {
-            "metadata_files": len(metadata_files),
-            "data_files": len(clean_files),
-            "fragmented_files": len(fragmented_files),
-            "total_size_mb": round(total_size / (1024 * 1024), 2),
-            "cache_dir": str(self.cache_dir)
-        }
 
 
 # From Dutch to English translations for vehicle data
@@ -507,149 +199,135 @@ translations = {
     "Stedelijkheid van gemeenten": "Urbanization of municipalities"
 }
 
+
 def translate(src):
+    """Translate Dutch terms to English using the translations dictionary."""
     return translations.get(src, src)
 
 
-# Initialize global cache manager
-_cache_manager = CBSCacheManager()
-
-
-def get_cbs_url(u, force_refresh=False, use_cache=True):
+def get_data_file_path(dataset_id: str, endpoint: str = "") -> Path:
     """
-    Fetch CBS OData URL with intelligent caching.
+    Get the file path for a local data file using Marimo's notebook directory.
+    
+    This function uses mo.notebook_dir() to get the correct path that works
+    both locally and on Marimo Community Cloud.
     
     Args:
-        u: CBS OData URL to fetch
-        force_refresh: If True, bypass cache and fetch fresh data
-        use_cache: If False, disable caching entirely (for debugging)
+        dataset_id: Dataset ID (e.g., "85236NED")
+        endpoint: Optional endpoint name (e.g., "TypedDataSet", "Bouwjaar")
     
     Returns:
-        pandas.DataFrame: Processed CBS data
+        Path: Path to the data file
     """
-    if use_cache:
-        # Try to get data from cache first
-        cached_df = _cache_manager.get_cached_data(u, force_refresh=force_refresh)
-        if cached_df is not None:
-            print(f"Loaded from cache: {u}")
-            return cached_df
-        
-        print(f"Cache miss, fetching from API: {u}")
-    
-    # Fetch from API
-    try:
-        df = pd.read_json(u)
-        expanded_df = df
-        expanded_df = expanded_df.join(pd.DataFrame(expanded_df.pop("value").values.tolist()))
-        
-        # Remove the "odata.metadata" column:
-        if "odata.metadata" in expanded_df.columns:
-            expanded_df = expanded_df.drop(columns=["odata.metadata"])
-        
-        # Save to cache if caching is enabled
-        if use_cache:
-            _cache_manager.save_data_to_cache(u, expanded_df)
-        
-        return expanded_df
-        
-    except Exception as e:
-        print(f"Error fetching data from {u}: {e}")
-        # Try to return stale cached data as fallback
-        if use_cache:
-            cached_df = _cache_manager.get_cached_data(u, force_refresh=False)
-            if cached_df is not None:
-                print(f"Using stale cached data as fallback: {u}")
-                return cached_df
-        raise
-
-
-def invalidate_cache(url=None):
-    """
-    Invalidate cache for specific dataset or all cached data.
-    
-    Args:
-        url: CBS dataset URL to invalidate, or None to invalidate all
-    """
-    _cache_manager.invalidate_cache(url)
-
-
-def get_cache_stats():
-    """Get cache statistics."""
-    return _cache_manager.get_cache_stats()
-
-
-def cleanup_fragmented_cache(dataset_id=None):
-    """
-    Clean up fragmented cache files from paginated requests.
-    
-    Args:
-        dataset_id: Optional dataset ID to clean, or None to clean all
-    
-    Returns:
-        Number of files cleaned up
-    """
-    return _cache_manager.cleanup_fragmented_cache(dataset_id)
-
-
-def get_cbs_url_paginated(base_url, page_size=5000, use_cache=True, force_refresh=False):
-    """
-    Fetch complete CBS dataset using pagination with intelligent aggregate caching.
-    
-    Args:
-        base_url: Base CBS OData URL without pagination parameters
-        page_size: Records per page (default 5000)
-        use_cache: Whether to use caching (default True)
-        force_refresh: Force refresh even if cached (default False)
-    
-    Returns:
-        Complete pandas.DataFrame with all records
-    """
-    if use_cache:
-        # Check if we have a complete cached dataset
-        # For paginated requests, we use the base URL for cache lookup
-        cached_df = _cache_manager.get_cached_data(base_url, force_refresh=force_refresh)
-        if cached_df is not None:
-            print(f"Loaded complete dataset from cache: {base_url}")
-            return cached_df
-        
-        print(f"Cache miss, fetching complete paginated dataset: {base_url}")
-
-    # Fetch data using pagination
-    skip = 0
-    all_data = []
-    
-    while True:
-        paged_url = f"{base_url}?$top={page_size}&$skip={skip}"
+    # Use marimo notebook directory if available, otherwise fall back to current directory
+    if _MARIMO_AVAILABLE:
         try:
-            # For individual pages, disable caching to avoid fragment storage
-            page_df = get_cbs_url(paged_url, use_cache=False, force_refresh=True)
-            if page_df.empty or len(page_df) == 0:
-                break  # No more data
-            
-            all_data.append(page_df)
-            skip += page_size
-            print(f"Fetched {len(page_df)} records (total so far: {skip})")
-            
-            # If we got fewer records than page_size, we've reached the end
-            if len(page_df) < page_size:
-                break
-                
-        except Exception as e:
-            print(f"Error fetching page at skip={skip}: {e}")
-            break
-    
-    if all_data:
-        # Combine all pages into a single DataFrame
-        import pandas as pd
-        complete_df = pd.concat(all_data, ignore_index=True)
-        print(f"Total records fetched: {len(complete_df)}")
-        
-        # Save complete dataset to cache using clean key
-        if use_cache:
-            _cache_manager.save_aggregated_data_to_cache(base_url, complete_df)
-        
-        return complete_df
+            base_dir = mo.notebook_dir()
+        except:
+            base_dir = Path.cwd()
     else:
-        # Fallback to empty DataFrame
-        import pandas as pd
-        return pd.DataFrame()
+        base_dir = Path.cwd()
+    
+    # Construct filename
+    if endpoint:
+        filename = f"{dataset_id}_{endpoint}.parquet"
+    else:
+        filename = f"{dataset_id}.parquet"
+    
+    return base_dir / "data" / filename
+
+
+def get_local_data(dataset_id: str, endpoint: str = "") -> pd.DataFrame:
+    """
+    Load data from local data folder.
+    
+    This is the recommended way to load CBS data that works both locally
+    and on Marimo Community Cloud. The data should be pre-populated using
+    the data_fetcher.py script.
+    
+    Args:
+        dataset_id: Dataset ID (e.g., "85236NED")
+        endpoint: Optional endpoint name (e.g., "TypedDataSet", "Bouwjaar")
+                 If empty, loads the base dataset metadata
+    
+    Returns:
+        pandas.DataFrame: The loaded data
+    
+    Raises:
+        FileNotFoundError: If the data file doesn't exist
+        Exception: If there's an error loading the data
+    """
+    data_file = get_data_file_path(dataset_id, endpoint)
+    
+    if not data_file.exists():
+        raise FileNotFoundError(
+            f"Data file not found: {data_file}\n"
+            f"Please run 'uv run data_fetcher.py' to fetch the data first."
+        )
+    
+    try:
+        df = pd.read_parquet(data_file)
+        print(f"Loaded from local data: {data_file.name} ({len(df)} records)")
+        return df
+    except Exception as e:
+        raise Exception(f"Error loading data from {data_file}: {e}")
+
+
+def list_available_data() -> List[Dict[str, Any]]:
+    """
+    List all available data files in the local data folder.
+    
+    Returns:
+        List of available data files with their sizes
+    """
+    # Use marimo notebook directory if available
+    if _MARIMO_AVAILABLE:
+        try:
+            base_dir = mo.notebook_dir()
+        except:
+            base_dir = Path.cwd()
+    else:
+        base_dir = Path.cwd()
+    
+    data_dir = base_dir / "data"
+    
+    if not data_dir.exists():
+        return []
+    
+    files = []
+    for parquet_file in data_dir.glob("*.parquet"):
+        size_mb = parquet_file.stat().st_size / (1024 * 1024)
+        files.append({
+            "filename": parquet_file.name,
+            "size_mb": round(size_mb, 2),
+            "path": str(parquet_file)
+        })
+    
+    return sorted(files, key=lambda x: x["filename"])
+
+
+def check_data_availability(dataset_id: str, endpoints: Optional[List[str]] = None) -> Dict[str, Dict[str, Any]]:
+    """
+    Check which data files are available for a dataset.
+    
+    Args:
+        dataset_id: Dataset ID to check
+        endpoints: List of endpoints to check, or None to check common ones
+    
+    Returns:
+        Dict with availability status for each endpoint
+    """
+    if endpoints is None:
+        # Common endpoints to check
+        endpoints = ["", "DataProperties", "Perioden", "TypedDataSet"]
+    
+    results = {}
+    for endpoint in endpoints:
+        data_file = get_data_file_path(dataset_id, endpoint)
+        results[endpoint if endpoint else "metadata"] = {
+            "available": data_file.exists(),
+            "path": str(data_file),
+            "size_mb": round(data_file.stat().st_size / (1024 * 1024), 2) if data_file.exists() else 0
+        }
+    
+    return results
