@@ -1,6 +1,8 @@
 import pandas as pd
 from pathlib import Path
 from typing import Optional, List, Dict, Any
+import requests
+import time
 
 try:
     import marimo as mo
@@ -304,6 +306,112 @@ def list_available_data() -> List[Dict[str, Any]]:
         })
     
     return sorted(files, key=lambda x: x["filename"])
+
+
+def get_cbs_url(url: str, force_refresh: bool = False) -> pd.DataFrame:
+    """
+    Fetch data from CBS API URL and return as DataFrame.
+    
+    Args:
+        url: CBS OData API URL
+        force_refresh: Whether to ignore cache (not used in this simple implementation)
+    
+    Returns:
+        pandas.DataFrame: The fetched data
+    """
+    try:
+        print(f"Fetching: {url}")
+        response = requests.get(url, timeout=60)
+        response.raise_for_status()
+        
+        data = response.json()
+        if 'value' in data:
+            return pd.DataFrame(data['value'])
+        else:
+            return pd.DataFrame(data)
+            
+    except Exception as e:
+        print(f"Error fetching {url}: {e}")
+        return pd.DataFrame()
+
+
+def get_cbs_url_paginated(url: str, force_refresh: bool = False, max_pages: int = 100) -> pd.DataFrame:
+    """
+    Fetch paginated data from CBS API URL and return as DataFrame.
+    
+    Args:
+        url: CBS OData API URL
+        force_refresh: Whether to ignore cache (not used in this simple implementation)
+        max_pages: Maximum number of pages to fetch
+    
+    Returns:
+        pandas.DataFrame: The combined paginated data
+    """
+    all_data = []
+    current_url = url
+    page_count = 0
+    
+    try:
+        while current_url and page_count < max_pages:
+            print(f"Fetching page {page_count + 1}: {current_url}")
+            response = requests.get(current_url, timeout=60)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            if 'value' in data and data['value']:
+                all_data.extend(data['value'])
+                page_count += 1
+                
+                # Check for next page
+                current_url = data.get('odata.nextLink') or data.get('@odata.nextLink')
+                if current_url and not current_url.startswith('http'):
+                    # Handle relative URLs
+                    base_url = url.split('?')[0] if '?' in url else url
+                    current_url = f"{base_url}?{current_url.split('?')[1]}" if '?' in current_url else current_url
+                
+                # Small delay between requests
+                time.sleep(0.5)
+            else:
+                break
+        
+        if all_data:
+            print(f"Fetched {len(all_data)} total records across {page_count} pages")
+            return pd.DataFrame(all_data)
+        else:
+            print("No data found")
+            return pd.DataFrame()
+            
+    except Exception as e:
+        print(f"Error fetching paginated data from {url}: {e}")
+        if all_data:
+            print(f"Returning partial data: {len(all_data)} records")
+            return pd.DataFrame(all_data)
+        return pd.DataFrame()
+
+
+def get_cache_stats() -> Dict[str, Any]:
+    """
+    Get cache statistics (simplified for compatibility).
+    
+    Returns:
+        Dict with basic cache info
+    """
+    data_dir = Path.cwd() / "data"
+    if data_dir.exists():
+        files = list(data_dir.glob("*.parquet"))
+        total_size = sum(f.stat().st_size for f in files) / (1024 * 1024)
+        return {
+            "cache_dir": str(data_dir),
+            "total_size_mb": round(total_size, 2),
+            "file_count": len(files)
+        }
+    else:
+        return {
+            "cache_dir": str(data_dir),
+            "total_size_mb": 0,
+            "file_count": 0
+        }
 
 
 def check_data_availability(dataset_id: str, endpoints: Optional[List[str]] = None) -> Dict[str, Dict[str, Any]]:
