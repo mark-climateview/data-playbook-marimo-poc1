@@ -248,7 +248,7 @@ def main(
     apps_data = _export(Path("apps"), output_dir, as_app=True)
 
     # Export data from the data/ directory
-    data_data = _export_data(Path("data"), output_dir, as_app=False)
+    data_data = _export_data(Path("data"), output_dir)
 
     # Exit if no notebooks or apps were found
     if not notebooks_data and not apps_data and not data_data:
