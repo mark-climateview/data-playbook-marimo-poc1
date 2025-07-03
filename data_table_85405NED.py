@@ -21,8 +21,8 @@ def _():
 
 @app.cell
 def _():
-    from util import translate, translations, get_local_data
-    return translate, translations, get_local_data
+    from util import translate, translations, get_local_data, CLOUD
+    return translate, translations, get_local_data, CLOUD
 
 
 @app.cell
