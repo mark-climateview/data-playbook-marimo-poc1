@@ -24,7 +24,9 @@ Important notes and caveats:
 - Notebooks use util.get_local_data() which automatically:
   - Loads from local data/ folder when running locally
   - Loads from GitHub Pages (https://mark-climateview.github.io/data-playbook-marimo-poc1/data/) when running on Marimo Community Cloud
-- Cloud detection is automatic using util.is_running_in_cloud() - no code changes needed!
+- Cloud detection uses util.CLOUD variable (defaults to True):
+  - Set util.CLOUD = False in notebooks when running locally
+  - Set util.CLOUD = True when running on Marimo Community Cloud
 
 ## Publishing Workflow
 

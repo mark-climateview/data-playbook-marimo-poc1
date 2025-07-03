@@ -11,6 +11,9 @@ except ImportError:
     _MARIMO_AVAILABLE = False
 
 
+# Cloud detection - set to False when running locally
+CLOUD = True
+
 # From Dutch to English translations for vehicle data
 translations = {
     # Common terms
@@ -349,7 +352,7 @@ def get_local_data(dataset_id: str, endpoint: str = "") -> pd.DataFrame:
         Exception: If there's an error loading the data
     """
     # Check if we're running in the cloud
-    if is_running_in_cloud():
+    if CLOUD:
         return get_cloud_data(dataset_id, endpoint)
     else:
         return get_local_data_file(dataset_id, endpoint)
@@ -420,7 +423,7 @@ def list_available_data() -> List[Dict[str, Any]]:
     Returns:
         List of available data files with their sizes and environment info
     """
-    if is_running_in_cloud():
+    if CLOUD:
         return list_cloud_data()
     else:
         return list_local_data()
@@ -637,7 +640,7 @@ def check_data_availability(dataset_id: str, endpoints: Optional[List[str]] = No
         # Common endpoints to check
         endpoints = ["", "DataProperties", "Perioden", "TypedDataSet"]
     
-    if is_running_in_cloud():
+    if CLOUD:
         return check_cloud_data_availability(dataset_id, endpoints)
     else:
         return check_local_data_availability(dataset_id, endpoints)
