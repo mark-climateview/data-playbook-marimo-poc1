@@ -207,6 +207,91 @@ def translate(src):
     return translations.get(src, src)
 
 
+def is_running_in_cloud() -> bool:
+    """
+    Detect if the notebook is running in Marimo Community Cloud (WASM) vs locally.
+    
+    Returns:
+        bool: True if running in cloud/WASM environment, False if running locally
+    """
+    if not _MARIMO_AVAILABLE:
+        return False
+    
+    try:
+        # Get the notebook directory/location
+        notebook_dir = mo.notebook_dir()
+        
+        # Convert to string to check if it's a URL
+        notebook_dir_str = str(notebook_dir)
+        
+        # Cloud/WASM environments return URLs, local environments return filesystem paths
+        return notebook_dir_str.startswith(('http://', 'https://'))
+    except:
+        return False
+
+
+def get_execution_environment() -> Dict[str, Any]:
+    """
+    Get detailed information about the current execution environment.
+    
+    Returns:
+        Dict with environment details including:
+        - is_cloud: Whether running in cloud/WASM
+        - is_local: Whether running locally
+        - marimo_available: Whether marimo is available
+        - notebook_dir: The notebook directory/URL
+        - notebook_location: The notebook location (if available)
+    """
+    env_info = {
+        'marimo_available': _MARIMO_AVAILABLE,
+        'is_cloud': False,
+        'is_local': True,
+        'notebook_dir': None,
+        'notebook_location': None
+    }
+    
+    if _MARIMO_AVAILABLE:
+        try:
+            # Get notebook directory
+            notebook_dir = mo.notebook_dir()
+            env_info['notebook_dir'] = str(notebook_dir)
+            
+            # Try to get notebook location if available
+            try:
+                notebook_location = mo.notebook_location()
+                env_info['notebook_location'] = str(notebook_location)
+            except:
+                env_info['notebook_location'] = env_info['notebook_dir']
+            
+            # Detect cloud vs local based on URL
+            is_cloud = str(notebook_dir).startswith(('http://', 'https://'))
+            env_info['is_cloud'] = is_cloud
+            env_info['is_local'] = not is_cloud
+            
+        except Exception as e:
+            env_info['error'] = str(e)
+    
+    return env_info
+
+
+def get_environment_info() -> str:
+    """
+    Get a human-readable summary of the current execution environment.
+    
+    Returns:
+        str: Formatted environment information
+    """
+    env = get_execution_environment()
+    
+    if not env['marimo_available']:
+        return "Environment: Not running in Marimo"
+    
+    if env['is_cloud']:
+        return f"Environment: Marimo Cloud/WASM (URL: {env['notebook_dir']})"
+    else:
+        return f"Environment: Marimo Local (Path: {env['notebook_dir']})"
+
+
 def get_data_file_path(dataset_id: str, endpoint: str = "") -> Path:
     """
     Get the file path for a local data file using Marimo's notebook directory.
@@ -225,6 +310,10 @@ def get_data_file_path(dataset_id: str, endpoint: str = "") -> Path:
     if _MARIMO_AVAILABLE:
         try:
             base_dir = mo.notebook_dir()
+            # Debug info for cloud detection
+            if str(base_dir).startswith(('http://', 'https://')):
+                # Running in cloud/WASM environment
+                pass  # Could add logging here if needed
         except:
             base_dir = Path.cwd()
     else:
@@ -241,11 +330,11 @@ def get_data_file_path(dataset_id: str, endpoint: str = "") -> Path:
 
 def get_local_data(dataset_id: str, endpoint: str = "") -> pd.DataFrame:
     """
-    Load data from local data folder.
+    Load data from local data folder or GitHub Pages (when running in cloud).
     
     This is the recommended way to load CBS data that works both locally
-    and on Marimo Community Cloud. The data should be pre-populated using
-    the data_fetcher.py script.
+    and on Marimo Community Cloud. When running locally, it loads from the
+    local data/ folder. When running in the cloud, it loads from GitHub Pages.
     
     Args:
         dataset_id: Dataset ID (e.g., "85236NED")
@@ -258,6 +347,24 @@ def get_local_data(dataset_id: str, endpoint: str = "") -> pd.DataFrame:
     Raises:
         FileNotFoundError: If the data file doesn't exist
         Exception: If there's an error loading the data
+    """
+    # Check if we're running in the cloud
+    if is_running_in_cloud():
+        return get_cloud_data(dataset_id, endpoint)
+    else:
+        return get_local_data_file(dataset_id, endpoint)
+
+
+def get_local_data_file(dataset_id: str, endpoint: str = "") -> pd.DataFrame:
+    """
+    Load data from local data folder (local execution only).
+    
+    Args:
+        dataset_id: Dataset ID (e.g., "85236NED")
+        endpoint: Optional endpoint name (e.g., "TypedDataSet", "Bouwjaar")
+    
+    Returns:
+        pandas.DataFrame: The loaded data
     """
     data_file = get_data_file_path(dataset_id, endpoint)
     
@@ -275,12 +382,56 @@ def get_local_data(dataset_id: str, endpoint: str = "") -> pd.DataFrame:
         raise Exception(f"Error loading data from {data_file}: {e}")
 
 
+def get_cloud_data(dataset_id: str, endpoint: str = "", 
+                   base_url: str = "https://mark-climateview.github.io/data-playbook-marimo-poc1/data/") -> pd.DataFrame:
+    """
+    Load data from GitHub Pages (cloud execution only).
+    
+    Args:
+        dataset_id: Dataset ID (e.g., "85236NED")
+        endpoint: Optional endpoint name (e.g., "TypedDataSet", "Bouwjaar")
+        base_url: Base URL for the GitHub Pages data hosting
+    
+    Returns:
+        pandas.DataFrame: The loaded data
+    """
+    # Construct filename
+    if endpoint:
+        filename = f"{dataset_id}_{endpoint}.parquet"
+    else:
+        filename = f"{dataset_id}.parquet"
+    
+    # Construct full URL
+    data_url = f"{base_url}{filename}"
+    
+    try:
+        print(f"Loading from GitHub Pages: {data_url}")
+        df = pd.read_parquet(data_url)
+        print(f"Loaded from cloud data: {filename} ({len(df)} records)")
+        return df
+    except Exception as e:
+        raise Exception(f"Error loading data from {data_url}: {e}")
+
+
 def list_available_data() -> List[Dict[str, Any]]:
+    """
+    List all available data files (local or cloud).
+    
+    Returns:
+        List of available data files with their sizes and environment info
+    """
+    if is_running_in_cloud():
+        return list_cloud_data()
+    else:
+        return list_local_data()
+
+
+def list_local_data() -> List[Dict[str, Any]]:
     """
     List all available data files in the local data folder.
     
     Returns:
-        List of available data files with their sizes
+        List of available data files with their sizes and environment info
     """
     # Use marimo notebook directory if available
     if _MARIMO_AVAILABLE:
@@ -302,8 +453,61 @@ def list_available_data() -> List[Dict[str, Any]]:
         files.append({
             "filename": parquet_file.name,
             "size_mb": round(size_mb, 2),
-            "path": str(parquet_file)
+            "path": str(parquet_file),
+            "environment": get_environment_info()
         })
+    
+    return sorted(files, key=lambda x: x["filename"])
+
+
+def list_cloud_data(base_url: str = "https://mark-climateview.github.io/data-playbook-marimo-poc1/data/") -> List[Dict[str, Any]]:
+    """
+    List available data files from GitHub Pages (cloud execution only).
+    
+    Note: This function attempts to check common dataset files since we can't
+    easily list directory contents from GitHub Pages.
+    
+    Args:
+        base_url: Base URL for the GitHub Pages data hosting
+    
+    Returns:
+        List of available data files with environment info
+    """
+    # Common datasets to check
+    common_datasets = [
+        "85236NED",
+        "85237NED", 
+        "85405NED"
+    ]
+    
+    # Common endpoints to check
+    common_endpoints = ["", "DataProperties", "Perioden", "TypedDataSet", "Bouwjaar"]
+    
+    files = []
+    for dataset in common_datasets:
+        for endpoint in common_endpoints:
+            if endpoint:
+                filename = f"{dataset}_{endpoint}.parquet"
+            else:
+                filename = f"{dataset}.parquet"
+            
+            data_url = f"{base_url}{filename}"
+            
+            # Try to check if file exists (quick HEAD request)
+            try:
+                response = requests.head(data_url, timeout=5)
+                if response.status_code == 200:
+                    content_length = response.headers.get('Content-Length', '0')
+                    size_mb = int(content_length) / (1024 * 1024) if content_length.isdigit() else 0
+                    files.append({
+                        "filename": filename,
+                        "size_mb": round(size_mb, 2),
+                        "path": data_url,
+                        "environment": get_environment_info()
+                    })
+            except:
+                # File doesn't exist or network error, skip
+                pass
     
     return sorted(files, key=lambda x: x["filename"])
 
@@ -420,26 +624,90 @@ def get_cache_stats() -> Dict[str, Any]:
 
 def check_data_availability(dataset_id: str, endpoints: Optional[List[str]] = None) -> Dict[str, Dict[str, Any]]:
     """
-    Check which data files are available for a dataset.
+    Check which data files are available for a dataset (local or cloud).
     
     Args:
         dataset_id: Dataset ID to check
         endpoints: List of endpoints to check, or None to check common ones
     
     Returns:
-        Dict with availability status for each endpoint
+        Dict with availability status for each endpoint and environment info
     """
     if endpoints is None:
         # Common endpoints to check
         endpoints = ["", "DataProperties", "Perioden", "TypedDataSet"]
     
+    if is_running_in_cloud():
+        return check_cloud_data_availability(dataset_id, endpoints)
+    else:
+        return check_local_data_availability(dataset_id, endpoints)
+
+
+def check_local_data_availability(dataset_id: str, endpoints: List[str]) -> Dict[str, Dict[str, Any]]:
+    """
+    Check which local data files are available for a dataset.
+    
+    Args:
+        dataset_id: Dataset ID to check
+        endpoints: List of endpoints to check
+    
+    Returns:
+        Dict with availability status for each endpoint and environment info
+    """
     results = {}
+    env_info = get_execution_environment()
+    
     for endpoint in endpoints:
         data_file = get_data_file_path(dataset_id, endpoint)
         results[endpoint if endpoint else "metadata"] = {
             "available": data_file.exists(),
             "path": str(data_file),
-            "size_mb": round(data_file.stat().st_size / (1024 * 1024), 2) if data_file.exists() else 0
+            "size_mb": round(data_file.stat().st_size / (1024 * 1024), 2) if data_file.exists() else 0,
+            "environment": env_info
+        }
+    
+    return results
+
+
+def check_cloud_data_availability(dataset_id: str, endpoints: List[str], 
+                                  base_url: str = "https://mark-climateview.github.io/data-playbook-marimo-poc1/data/") -> Dict[str, Dict[str, Any]]:
+    """
+    Check which cloud data files are available for a dataset.
+    
+    Args:
+        dataset_id: Dataset ID to check
+        endpoints: List of endpoints to check
+        base_url: Base URL for the GitHub Pages data hosting
+    
+    Returns:
+        Dict with availability status for each endpoint and environment info
+    """
+    results = {}
+    env_info = get_execution_environment()
+    
+    for endpoint in endpoints:
+        if endpoint:
+            filename = f"{dataset_id}_{endpoint}.parquet"
+        else:
+            filename = f"{dataset_id}.parquet"
+        
+        data_url = f"{base_url}{filename}"
+        
+        # Try to check if file exists (quick HEAD request)
+        try:
+            response = requests.head(data_url, timeout=5)
+            available = response.status_code == 200
+            content_length = response.headers.get('Content-Length', '0')
+            size_mb = int(content_length) / (1024 * 1024) if content_length.isdigit() else 0
+        except:
+            available = False
+            size_mb = 0
+        
+        results[endpoint if endpoint else "metadata"] = {
+            "available": available,
+            "path": data_url,
+            "size_mb": round(size_mb, 2),
+            "environment": env_info
         }
     
     return results

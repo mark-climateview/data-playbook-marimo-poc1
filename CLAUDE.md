@@ -13,16 +13,18 @@ Important notes and caveats:
 - After changing a Marimo file, run it in order to test if it works or if it generate errors;
   - A working file will generate no output, a broken file will give an Exception stack trace.
 
-## Data Management (Local Data Approach)
+## Data Management (Hybrid Local/Cloud Approach)
 
-- The project now uses a local data/ folder approach for better Marimo Community Cloud compatibility
+- The project uses a hybrid approach that works both locally and on Marimo Community Cloud
 - CBS data is stored locally in data/ folder as .parquet files (faster, more reliable)
 - Use data_fetcher.py to fetch/refresh data from CBS APIs:
   - Run: "uv run data_fetcher.py" (fetch all datasets)
   - Run: "uv run data_fetcher.py --dataset 85236NED" (fetch specific dataset)
   - Run: "uv run data_fetcher.py --refresh" (force refresh all data)
-- Notebooks use util.get_local_data() instead of live API calls
-- Data files work both locally and on Marimo Community Cloud using mo.notebook_dir()
+- Notebooks use util.get_local_data() which automatically:
+  - Loads from local data/ folder when running locally
+  - Loads from GitHub Pages (https://mark-climateview.github.io/data-playbook-marimo-poc1/data/) when running on Marimo Community Cloud
+- Cloud detection is automatic using util.is_running_in_cloud() - no code changes needed!
 
 ## Publishing Workflow
 
