@@ -134,6 +134,40 @@ def _generate_index(output_dir: Path, template_file: Path, notebooks_data: List[
         logger.error(f"Error rendering template: {e}")
 
 
+
+def _export_data(folder: Path, output_dir: Path) -> List[dict]:
+    # Check if the folder exists
+    if not folder.exists():
+        logger.warning(f"Directory not found: {folder}")
+        return []
+
+    # Find all Python files recursively in the folder
+    datafiles = list(folder.rglob("*.parquet"))
+    logger.debug(f"Found {len(datafiles)} Parquet files in {folder}")
+
+    # Exit if no notebooks were found
+    if not datafiles:
+        logger.warning(f"No parquet files found in {folder}!")
+        return []
+
+    # For each Parquet data file copy it to the output_dir / "data" folder
+    output_data_dir = output_dir / "data"
+    output_data_dir.mkdir(parents=True, exist_ok=True)
+    processed = []
+    for datafile in datafiles:
+        try:
+            # Copy the data file to the output directory
+            output_file = output_data_dir / datafile.name
+            datafile.replace(output_file)
+            processed.append(output_file)
+            logger.info(f"Copied {datafile} to {output_file}")
+        except Exception as e:
+            logger.error(f"Error copying {datafile}: {e}")
+    
+    logger.info(f"Successfully exported {len(processed)} out of {len(datafiles)} files from {folder}")
+    return processed
+
+
 def _export(folder: Path, output_dir: Path, as_app: bool=False) -> List[dict]:
     """Export all marimo notebooks in a folder to HTML/WebAssembly format.
 
@@ -213,9 +247,12 @@ def main(
     # Export apps from the apps/ directory
     apps_data = _export(Path("apps"), output_dir, as_app=True)
 
+    # Export data from the data/ directory
+    data_data = _export(Path("data"), output_dir, as_app=False)
+
     # Exit if no notebooks or apps were found
-    if not notebooks_data and not apps_data:
-        logger.warning("No notebooks or apps found!")
+    if not notebooks_data and not apps_data and not data_data:
+        logger.warning("No notebooks, apps or data found!")
         return
 
     # Generate the index.html file that lists all notebooks and apps
