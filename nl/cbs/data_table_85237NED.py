@@ -5,7 +5,7 @@ app = marimo.App(width="medium")
 
 
 @app.cell
-asyc def _():
+async def _():
     import sys, os
     if "pyodide" in sys.modules:
         from pyodide.http import pyfetch
