@@ -1,4 +1,3 @@
-import sys
 import marimo
 
 __generated_with = "0.14.17"
@@ -7,6 +6,7 @@ app = marimo.App(width="medium")
 
 @app.cell
 async def _():
+    import sys
     if "pyodide" in sys.modules:
         from pyodide.http import pyfetch
         response = await pyfetch("https://mark-climateview.github.io/data-playbook-marimo-poc1/cbs.zip")
