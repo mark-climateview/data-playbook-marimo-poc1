@@ -334,7 +334,7 @@ def get_local_data(dataset_id: str, endpoint: str = "") -> pd.DataFrame:
         Exception: If there's an error loading the data
     """
     # Check if we're running in WASM/cloud environment
-    if not is_wasm():
+    if is_wasm():
         return get_cloud_data(dataset_id, endpoint)
     else:
         return get_local_data_file(dataset_id, endpoint)
@@ -382,9 +382,9 @@ def get_cloud_data(dataset_id: str, endpoint: str = "",
     """
     # Construct filename
     if endpoint:
-        filename = f"{dataset_id}_{endpoint}.parquet"
+        filename = f"{dataset_id}_{endpoint}.parquet.gz"
     else:
-        filename = f"{dataset_id}.parquet"
+        filename = f"{dataset_id}.parquet.gz"
     
     # Construct full URL
     data_url = f"{base_url}{filename}"

@@ -13,7 +13,7 @@ Usage:
 """
 
 import argparse
-import sys
+import sys, os
 from pathlib import Path
 from util import get_cbs_url, get_cbs_url_paginated, get_cache_stats
 
@@ -112,7 +112,8 @@ def fetch_dataset(dataset_id, force_refresh=False):
             
             if df is not None and not df.empty:
                 # Save directly to data folder
-                df.to_parquet(output_path, index=False, compression="gzip")
+                df.to_parquet(output_path, index=False)
+                os.system(f"gzip -k {output_path}")
                 print(f"  ✓ {filename} ({len(df)} records)")
                 success_count += 1
             else:
