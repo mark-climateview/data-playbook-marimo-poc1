@@ -7,7 +7,7 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import sys, os
-    if "pyodide" in sys.modules and not os.path.exists("data"):
+    if "pyodide" in sys.modules and __name__ == "__main__":
         from pyodide.http import pyfetch
         response = await pyfetch("https://mark-climateview.github.io/data-playbook-marimo-poc1/cbs.zip")
         await response.unpack_archive()    
