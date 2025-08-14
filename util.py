@@ -334,7 +334,7 @@ def get_local_data(dataset_id: str, endpoint: str = "") -> pd.DataFrame:
         Exception: If there's an error loading the data
     """
     # Check if we're running in WASM/cloud environment
-    if is_wasm():
+    if not is_wasm():
         return get_cloud_data(dataset_id, endpoint)
     else:
         return get_local_data_file(dataset_id, endpoint)
