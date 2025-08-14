@@ -112,7 +112,7 @@ def fetch_dataset(dataset_id, force_refresh=False):
             
             if df is not None and not df.empty:
                 # Save directly to data folder
-                df.to_parquet(output_path, index=False)
+                df.to_parquet(output_path, index=False, compression="gzip")
                 print(f"  ✓ {filename} ({len(df)} records)")
                 success_count += 1
             else:
