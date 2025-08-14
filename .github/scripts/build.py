@@ -21,7 +21,7 @@ The exported files will be placed in the specified output directory (default: _s
 # ]
 # ///
 
-import subprocess
+import subprocess, os
 from typing import List, Union
 from pathlib import Path
 
