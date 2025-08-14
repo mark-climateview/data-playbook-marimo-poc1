@@ -13,7 +13,7 @@ async def _():
         await response.unpack_archive()    
 
     import marimo as mo
-    return (mo,)
+    return mo, sys
 
 
 @app.cell
@@ -47,9 +47,9 @@ def _(mo):
         r"""
     # 1. Calculate national average km per year by fuel type
 
-    From dataset 85405NED: Traffic performance of passenger cars, fuel extended, age, 
+    From dataset [85405NED: Traffic performance of passenger cars, fuel extended, age](#data_table_85405ned)
 
-    - `X = average number of km driven per car of the fuel type`
+    - `average_annual_mileage` = average number of km driven per car of the fuel type
     """
     )
     return
@@ -110,9 +110,9 @@ def _(mo):
         r"""
     # 2. Calculate number of cars registered per municipality
 
-    From dataset 85236NED: Motor vehicles active on January 1; vehicle type, region as of January 1, 2023 
+    From dataset [85236NED: Motor vehicles active on January 1; vehicle type, region as of January 1, 2023](#data_table_85236ned)
 
-     - `Y = the number of cars registered in your municipality`
+     - `registered_cars` = the number of cars registered in a municipality
     """
     )
     return
@@ -148,12 +148,11 @@ def _(data_table_85236NED_result, pd):
 def _(mo):
     mo.md(
         r"""
-    # 3. Calculate national distribution of cars by fuel type
+    # 3. Calculate national distribution of cars per fuel type
 
-    From dataset 85237NED: Passenger cars active; vehicle characteristics, regions, January 1 
+    From dataset [85237NED: Passenger cars active; vehicle characteristics, regions, January 1](#data_table_85237ned), get the national distribution of passenger cars per fuel type:
 
-      - Get the distribution of passenger cars per fuel type nationally.
-      - `Z = the share of passenger cars of your fuel type`
+      - `distribution_fueltype` = the percentage share of passenger cars of each fuel type
     """
     )
     return
@@ -222,7 +221,7 @@ def _(mo):
 
     Apply the national shares per fuel type to the number of cars registered in your municipality to get the number of cars per fuel  type in your municipality.
 
-    - `numbercars_fueltype = Y * Z`
+    - `number_cars_fueltype = registered_cars * distribution_fueltype`
     """
     )
     return
@@ -273,7 +272,7 @@ def _(mo):
 
     Multiply the number of cars per fuel type with the average yearly km for that fuel type.
 
-    -  `operations_fueltype = numbercars_fueltype * X`
+    -  `operations_fueltype = number_cars_fueltype * average_annual_mileage`
     """
     )
     return
@@ -330,58 +329,57 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
-    import data_table_85405NED
-    mo.md("## 85405NED")
-    return (data_table_85405NED,)
+def _(sys):
+    data_sources = [ 
+        "nl/cbs/data_table_85405NED.py",
+        "nl/cbs/data_table_85236NED.py",
+        "nl/cbs/data_table_85237NED.py"
+    ]
+
+
+    def import_file(filename):
+        import importlib.util
+        module_name = filename.split("/")[-1].replace(".py", "")
+        spec = importlib.util.spec_from_file_location(module_name, filename)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+        # Add to global namespace
+        globals()[module_name] = module
+        return module
+
+    import_file("util.py")
+
+    data_modules = []
+    for ds in data_sources:
+        data_modules.append(import_file(ds))
+
+    #import nl.cbs.data_table_85405NED
+    #mo.md("## 85405NED")
+
+    return (data_modules,)
 
 
 @app.cell
-async def _(data_table_85405NED, mo):
-    async def import_data_table_85405NED():
-        result = await data_table_85405NED.app.embed()
+async def _(data_modules, mo):
+    async def import_data_table(dm):
+        result = await dm.app.embed()
         return result
 
-    data_table_85405NED_result = await import_data_table_85405NED()
-    # data_table_85405NED_result.output
-    mo.md(data_table_85405NED_result.defs["description"])
-    return (data_table_85405NED_result,)
+    async def load_data_modules():
+        md = ""
+        for dm in data_modules:
+            #print(dm.__dict__)
+            globals()[f"{dm.__name__}_result"] = await import_data_table(dm)
+            #data_table_85405NED_result = await import_data_table_85405NED()
+            # data_table_85405NED_result.output
+            md += f"---\n\n## {dm.__name__}"
+            md += globals()[f"{dm.__name__}_result"].defs["description"]
+        return md
 
+    mo.md( await load_data_modules() )
 
-@app.cell
-def _(mo):
-    import data_table_85236NED
-    mo.md("## 85236NED")
-    return (data_table_85236NED,)
-
-
-@app.cell
-async def _(data_table_85236NED, mo):
-    async def import_data_table_85236NED():
-        result = await data_table_85236NED.app.embed()
-        return result
-
-    data_table_85236NED_result = await import_data_table_85236NED()
-    mo.md(data_table_85236NED_result.defs["description"])
-    return (data_table_85236NED_result,)
-
-
-@app.cell
-def _(mo):
-    import data_table_85237NED
-    mo.md("## 85237NED")
-    return (data_table_85237NED,)
-
-
-@app.cell
-async def _(data_table_85237NED, mo):
-    async def import_data_table_85237NED():
-        result = await data_table_85237NED.app.embed()
-        return result
-
-    data_table_85237NED_result = await import_data_table_85237NED()
-    mo.md(data_table_85237NED_result.defs["description"])
-    return (data_table_85237NED_result,)
+    return
 
 
 @app.cell

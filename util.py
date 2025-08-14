@@ -310,7 +310,7 @@ def get_data_file_path(dataset_id: str, endpoint: str = "") -> Path:
     else:
         filename = f"{dataset_id}.parquet"
     
-    return base_dir / "data" / filename
+    return Path("data") / filename
 
 
 def get_local_data(dataset_id: str, endpoint: str = "") -> pd.DataFrame:
