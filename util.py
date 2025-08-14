@@ -14,7 +14,7 @@ except ImportError:
 
 # Cloud / WASM detection
 def is_wasm() -> bool:
-    return "pyodide" in sys.modules
+    return False #return "pyodide" in sys.modules
 
 
 # From Dutch to English translations for vehicle data

@@ -247,6 +247,7 @@ def main(
     # Zip up the nl/cbs directory:
     os.system(f"zip -j {output_dir}/cbs.zip nl/cbs/*")
     os.system(f"zip -j {output_dir}/cbs.zip util.py")
+    os.system(f"zip {output_dir}/cbs.zip data/*")
     
     # Export apps from the apps/ directory
     # apps_data = _export(Path("apps"), output_dir, as_app=True)
