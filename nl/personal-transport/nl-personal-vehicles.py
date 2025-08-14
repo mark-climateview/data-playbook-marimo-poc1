@@ -342,6 +342,7 @@ def _(sys):
         module_name = filename.split("/")[-1].replace(".py", "")
         spec = importlib.util.spec_from_file_location(module_name, filename)
         module = importlib.util.module_from_spec(spec)
+        module._IS_IMPORTED = True
         sys.modules[module_name] = module
         spec.loader.exec_module(module)
         # Add to global namespace
