@@ -5,15 +5,12 @@ app = marimo.App(width="medium")
 
 
 @app.cell
-def _():
+asyc def _():
     import sys, os
-    try:
-        if "pyodide" in sys.modules:
-            from pyodide.http import pyfetch
-            response = await pyfetch("https://mark-climateview.github.io/data-playbook-marimo-poc1/cbs.zip")
-            await response.unpack_archive()
-    except:
-        pass
+    if "pyodide" in sys.modules:
+        from pyodide.http import pyfetch
+        response = await pyfetch("https://mark-climateview.github.io/data-playbook-marimo-poc1/cbs.zip")
+        await response.unpack_archive()
 
     import marimo as mo
     return mo, sys
