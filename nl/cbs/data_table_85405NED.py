@@ -7,10 +7,13 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import sys, os
-    if "pyodide" in sys.modules and not globals().get('_IS_IMPORTED', False):
-        from pyodide.http import pyfetch
-        response = await pyfetch("https://mark-climateview.github.io/data-playbook-marimo-poc1/cbs.zip")
-        await response.unpack_archive()    
+    try:
+        if "pyodide" in sys.modules:
+            from pyodide.http import pyfetch
+            response = await pyfetch("https://mark-climateview.github.io/data-playbook-marimo-poc1/cbs.zip")
+            await response.unpack_archive()
+    except:
+        pass
 
     import marimo as mo
     return mo, sys
