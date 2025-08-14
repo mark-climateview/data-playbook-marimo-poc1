@@ -254,11 +254,6 @@ def main(
     # Export data from the data/ directory
     data_data = _export_data(Path("data"), output_dir)
 
-    # Exit if no notebooks or apps were found
-    if not notebooks_data and not apps_data and not data_data:
-        logger.warning("No notebooks, apps or data found!")
-        return
-
     # Generate the index.html file that lists all notebooks and apps
     _generate_index(output_dir=output_dir, notebooks_data=notebooks_data, apps_data=apps_data, template_file=template_file)
 
