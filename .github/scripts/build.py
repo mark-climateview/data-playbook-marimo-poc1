@@ -245,8 +245,8 @@ def main(
     notebooks_data = _export(Path("nl/personal-transport"), output_dir, as_app=False)
 
     # Zip up the nl/cbs directory:
-    os.system(f"zip -j {output_dir}/cbs.zip nl/cbs/*")
-    os.system(f"zip -j {output_dir}/cbs.zip util.py")
+    os.system(f"zip {output_dir}/cbs.zip nl/cbs/*")
+    os.system(f"zip {output_dir}/cbs.zip util.py")
     os.system(f"zip {output_dir}/cbs.zip data/*")
     
     # Export apps from the apps/ directory
