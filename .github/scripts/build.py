@@ -243,6 +243,7 @@ def main(
 
     # Export notebooks from the notebooks/ directory
     notebooks_data = _export(Path("nl/personal-transport"), output_dir, as_app=False)
+    notebooks_data += _export(Path("nl/cbs"), output_dir, as_app=False)
 
     # Zip up the nl/cbs directory:
     os.system(f"zip {output_dir}/cbs.zip nl/cbs/*")
