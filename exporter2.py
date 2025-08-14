@@ -66,7 +66,7 @@ def create_inlined_util_cell():
     # Create the replacement cell with local data functions only
     cell_content = '@app.cell\ndef _(mo):\n    # Utility functions (inlined from util.py)\n'
     cell_content += ''.join(indented_lines)
-    cell_content += '\n    return translate, get_local_data, get_data_file_path, list_available_data, check_data_availability, is_running_in_cloud, get_execution_environment, get_environment_info\n'
+    cell_content += '\n    return translate, get_local_data, get_data_file_path, list_available_data, check_data_availability, is_wasm, get_execution_environment, get_environment_info\n'
     
     return cell_content
 

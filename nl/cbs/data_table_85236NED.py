@@ -21,8 +21,8 @@ def _():
 
 @app.cell
 def _():
-    from util import translate, translations, get_local_data, CLOUD, get_execution_environment, get_environment_info
-    return translate, translations, get_local_data, CLOUD, get_execution_environment, get_environment_info
+    from util import translate, translations, get_local_data, is_wasm, get_execution_environment, get_environment_info
+    return translate, translations, get_local_data, is_wasm, get_execution_environment, get_environment_info
 
 
 @app.cell
@@ -32,13 +32,13 @@ def _(mo):
 
 
 @app.cell
-def _(mo, CLOUD, get_environment_info):
+def _(mo, is_wasm, get_environment_info):
     # Environment Detection Demo
     environment_info = get_environment_info()
     
     mo.md(f"""
     **Environment Detection:**
-    - Running in cloud: {CLOUD}
+    - Running in WASM: {is_wasm()}
     - Environment: {environment_info}
     """)
     return

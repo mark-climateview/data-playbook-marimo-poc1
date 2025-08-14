@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 import requests
 import time
+import sys
 
 try:
     import marimo as mo
@@ -11,8 +12,10 @@ except ImportError:
     _MARIMO_AVAILABLE = False
 
 
-# Cloud detection - set to False when running locally
-CLOUD = True
+# Cloud / WASM detection
+def is_wasm() -> bool:
+    return "pyodide" in sys.modules
+
 
 # From Dutch to English translations for vehicle data
 translations = {
@@ -210,27 +213,6 @@ def translate(src):
     return translations.get(src, src)
 
 
-def is_running_in_cloud() -> bool:
-    """
-    Detect if the notebook is running in Marimo Community Cloud (WASM) vs locally.
-    
-    Returns:
-        bool: True if running in cloud/WASM environment, False if running locally
-    """
-    if not _MARIMO_AVAILABLE:
-        return False
-    
-    try:
-        # Get the notebook directory/location
-        notebook_dir = mo.notebook_dir()
-        
-        # Convert to string to check if it's a URL
-        notebook_dir_str = str(notebook_dir)
-        
-        # Cloud/WASM environments return URLs, local environments return filesystem paths
-        return notebook_dir_str.startswith(('http://', 'https://'))
-    except:
-        return False
 
 
 def get_execution_environment() -> Dict[str, Any]:
@@ -351,8 +333,8 @@ def get_local_data(dataset_id: str, endpoint: str = "") -> pd.DataFrame:
         FileNotFoundError: If the data file doesn't exist
         Exception: If there's an error loading the data
     """
-    # Check if we're running in the cloud
-    if CLOUD:
+    # Check if we're running in WASM/cloud environment
+    if is_wasm():
         return get_cloud_data(dataset_id, endpoint)
     else:
         return get_local_data_file(dataset_id, endpoint)
@@ -423,7 +405,7 @@ def list_available_data() -> List[Dict[str, Any]]:
     Returns:
         List of available data files with their sizes and environment info
     """
-    if CLOUD:
+    if is_wasm():
         return list_cloud_data()
     else:
         return list_local_data()
@@ -640,7 +622,7 @@ def check_data_availability(dataset_id: str, endpoints: Optional[List[str]] = No
         # Common endpoints to check
         endpoints = ["", "DataProperties", "Perioden", "TypedDataSet"]
     
-    if CLOUD:
+    if is_wasm():
         return check_cloud_data_availability(dataset_id, endpoints)
     else:
         return check_local_data_availability(dataset_id, endpoints)

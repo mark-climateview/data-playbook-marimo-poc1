@@ -1,11 +1,17 @@
+import sys
 import marimo
 
-__generated_with = "0.14.6"
+__generated_with = "0.14.17"
 app = marimo.App(width="medium")
 
 
 @app.cell
-def _():
+async def _():
+    if "pyodide" in sys.modules:
+        from pyodide.http import pyfetch
+        response = await pyfetch("https://mark-climateview.github.io/data-playbook-marimo-poc1/cbs.zip")
+        await response.unpack_archive()    
+
     import marimo as mo
     return (mo,)
 
@@ -339,8 +345,6 @@ async def _(data_table_85405NED, mo):
     data_table_85405NED_result = await import_data_table_85405NED()
     # data_table_85405NED_result.output
     mo.md(data_table_85405NED_result.defs["description"])
-    for k in data_table_85405NED_result.defs.keys():
-        print(k)
     return (data_table_85405NED_result,)
 
 

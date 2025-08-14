@@ -50,7 +50,7 @@ def _export_html_wasm(notebook_path: Path, output_dir: Path, as_app: bool = Fals
     output_path: Path = notebook_path.with_suffix(".html")
 
     # Base command for marimo export
-    cmd: List[str] = ["uvx", "marimo", "export", "html-wasm", "--sandbox"]
+    cmd: List[str] = ["uvx", "marimo", "export", "html-wasm"]
 
     # Configure export mode based on whether it's an app or a notebook
     if as_app:
@@ -242,10 +242,14 @@ def main(
     logger.info(f"Using template file: {template_file}")
 
     # Export notebooks from the notebooks/ directory
-    notebooks_data = _export(Path("notebooks"), output_dir, as_app=False)
+    notebooks_data = _export(Path("nl/personal-transport"), output_dir, as_app=False)
 
+    # Zip up the nl/cbs directory:
+    os.system(f"zip -j {output_dir}/cbs.zip nl/cbs/*")
+    os.system(f"zip -j {output_dir}/cbs.zip util.py")
+    
     # Export apps from the apps/ directory
-    apps_data = _export(Path("apps"), output_dir, as_app=True)
+    # apps_data = _export(Path("apps"), output_dir, as_app=True)
 
     # Export data from the data/ directory
     data_data = _export_data(Path("data"), output_dir)
