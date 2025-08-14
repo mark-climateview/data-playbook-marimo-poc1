@@ -119,7 +119,7 @@ def _generate_index(output_dir: Path, template_file: Path, notebooks_data: List[
         template = env.get_template(template_name)
 
         # Render the template with notebook and app data
-        rendered_html = template.render(notebooks=notebooks_data, apps=apps_data)
+        rendered_html = template.render(notebooks=notebooks_data) #, apps=apps_data)
 
         # Write the rendered HTML to the index.html file
         with open(index_path, "w") as f:
@@ -255,7 +255,7 @@ def main(
     data_data = _export_data(Path("data"), output_dir)
 
     # Generate the index.html file that lists all notebooks and apps
-    _generate_index(output_dir=output_dir, notebooks_data=notebooks_data, apps_data=apps_data, template_file=template_file)
+    _generate_index(output_dir=output_dir, notebooks_data=notebooks_data, template_file=template_file)
 
     logger.info(f"Build completed successfully. Output directory: {output_dir}")
 
