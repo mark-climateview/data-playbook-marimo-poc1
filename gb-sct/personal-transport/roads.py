@@ -7,13 +7,7 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import marimo as mo
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--year", default="2023")
-    parser.add_argument("--city", default="Scotland total")
-    args, _ = parser.parse_known_args()
-    return args, mo
+    return (mo,)
 
 
 @app.cell
@@ -24,16 +18,52 @@ def _(mo):
 
 @app.cell
 def _(mo):
+    # Render an image from a local file
+    mo.image(src="images/gb-sct-personal-transport-roads.png", 
+             alt="Scotland: Personal Transport - Roads", 
+             width=800,
+             style={"margin": "0 auto"},
+             caption="Flow of data for Scotland's Personal Transport - Roads module")
+    return
+
+
+@app.cell
+def _(mo):
     parameters = [
-        "stock_personal_vehicles_petrol",
+        "stock_buses_diesel",
         "stock_personal_vehicles_diesel",
+        "stock_freight_heavy_trucks_diesel",
+        "stock_freight_light_trucks_diesel",
+        "stock_personal_vehicles_petrol",
+        "stock_motorcycles_petrol",
+        "stock_freight_light_trucks_petrol",
+        "energy_intensity_buses_diesel",
+        "energy_intensity_personal_vehicles_diesel",
+        "energy_intensity_freight_heavy_trucks_diesel",
+        "energy_intensity_freight_light_trucks_diesel",
+        "energy_intensity_personal_vehicles_petrol",
+        "energy_intensity_motorcycles_petrol",
+        "energy_intensity_freight_light_trucks_petrol",
+        "emission_factor_diesel_kwh_to_co2e",
+        "emission_factor_petrol_kwh_to_co2e"    
     ]
 
-    md = "Calculates the following parameters:\n\n"
+    md = "This notebook calculates the following parameters:\n\n"
     for p in parameters:
         md += f"- `{p}`\n"
-
     mo.md(md)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ---
+
+    # User input
+    """
+    )
     return
 
 
@@ -102,6 +132,8 @@ def _(args, mo):
 def _(mo):
     mo.md(
         r"""
+    ---
+
     # 1. Record the fuel consumption per vehicle type and per road type from the sub-national road transport consumption data. 
 
     "Buses, diesel cars, HGV and diesel LGV
@@ -113,7 +145,7 @@ def _(mo):
     Repeat this process for each local authority and for each
     year back to 2005.
 
-    Data source: 
+    **Source**: 
     https://assets.publishing.service.gov.uk/media/685a855272588f418862071f/subnational-road-transport-fuel-consumption-tables-2005-2023.xlsx
     """
     )
@@ -135,7 +167,7 @@ def _(
         # Transpose the DataFrame to have fuel types as rows
         df = df.T
         # Rename column to local authority name
-        df.columns = ["kTOE"]
+        df.columns = ["Fuel Consumption (kTOE)"]
         return df
 
     subnational_road_transport_fuel_consumption_ktoe = get_subnational_road_transport_fuel_consumption_ktoe(local_authority_dropdown.value)
@@ -150,11 +182,13 @@ def _(
 def _(mo):
     mo.md(
         r"""
+    ---
+
     # 2. Convert kTOE to kWh
 
-    Using a conversion factor of 1 kTOE = 11,630,000 kWh
+    Using an energy conversion factor of 1 tonne oil equivalent (toe) = 11,630 kWh
 
-    Source: [UK Greenhouse gas reporting: conversion factors](https://www.gov.uk/government/collections/government-conversion-factors-for-company-reporting)
+    **Source**: Page 48, [2012 Guidelines to Defra / DECC's GHG Conversion Factors for Company Reporting](https://assets.publishing.service.gov.uk/media/5a79beaae5274a684690bcb2/pb13773-ghg-conversion-factors-2012.pdf)
     """
     )
     return
@@ -164,8 +198,8 @@ def _(mo):
 def _(subnational_road_transport_fuel_consumption_ktoe):
 
     subnational_road_transport_fuel_consumption_kwh = subnational_road_transport_fuel_consumption_ktoe.copy()
-    subnational_road_transport_fuel_consumption_kwh *= 11630000
-    subnational_road_transport_fuel_consumption_kwh.columns = ["kWh"]
+    subnational_road_transport_fuel_consumption_kwh *= 11630*1000
+    subnational_road_transport_fuel_consumption_kwh.columns = ["Fuel Consumption (kWh)"]
     subnational_road_transport_fuel_consumption_kwh
     return (subnational_road_transport_fuel_consumption_kwh,)
 
@@ -174,6 +208,8 @@ def _(subnational_road_transport_fuel_consumption_ktoe):
 def _(mo):
     mo.md(
         r"""
+    ---
+
     # 3. Get Emission Conversion Factors for Petrol and Diesel
 
 
@@ -205,6 +241,9 @@ def _(mo):
     energy consumption values for calculations, and the
     PBCCDR we have pulled the gross emissions factors for
     our calculations.
+
+
+    **Source**: [UK Greenhouse gas reporting: conversion factors](https://www.gov.uk/government/collections/government-conversion-factors-for-company-reporting)
     """
     )
     return
@@ -223,7 +262,7 @@ def _(conversion_factors, mo, pd):
     #petrol_emission_factor_kwh
     pd.DataFrame({
         "Fuel Type": [ "Petrol", "Diesel" ],
-        "Conversion Factor (kgCO2e/kWh)": [
+        "Emission Factor (kgCO2e/kWh)": [
             petrol_emission_factor_kwh,
             diesel_emission_factor_kwh
         ]
@@ -234,7 +273,17 @@ def _(conversion_factors, mo, pd):
 
 @app.cell
 def _(mo):
-    mo.md(r"""# 4. Aggregate Emissions (per road and vehicle type)""")
+    mo.md(
+        r"""
+    ---
+
+    # 4. Aggregate Emissions (per road and vehicle type)
+
+    Calculated as:
+
+    `emissions (kgCO2e) = fuel consumption (kWh) * fuel emission factor (kgCO2e/kWh)`
+    """
+    )
     return
 
 
@@ -248,7 +297,7 @@ def _(
     def calculate_emissions_per_vehicle_type():
         # Create copy of dataframe
         subnational_road_transport_emissions = subnational_road_transport_fuel_consumption_kwh.copy()
-        subnational_road_transport_emissions.columns = ["kgCO2e"]
+        subnational_road_transport_emissions.columns = ["Emissions (kgCO2e)"]
 
         vehicel_types = ['Buses - \nMotorways', 'Buses - \nA roads', 'Buses - \nMinor roads',
                'Buses total', 'Diesel cars - \nMotorways', 'Diesel cars - \nA roads',
@@ -273,7 +322,7 @@ def _(
                 factor = diesel_emission_factor_kwh
             else:
                 factor = petrol_emission_factor_kwh
-            subnational_road_transport_emissions.loc[vehicle_type, "kgCO2e"] = subnational_road_transport_fuel_consumption_kwh.loc[vehicle_type, "kWh"] * factor
+            subnational_road_transport_emissions.loc[vehicle_type, "Emissions (kgCO2e)"] = subnational_road_transport_fuel_consumption_kwh.loc[vehicle_type, "Fuel Consumption (kWh)"] * factor
 
         return subnational_road_transport_emissions
 
@@ -287,14 +336,18 @@ def _(
 def _(mo):
     mo.md(
         r"""
+    ---
+
     # 5. Calculate Operations (per road and vehicle type)
 
     ## 5a. Get Operations Conversion Factors
 
     ClimateView's operations units are used to translate emissions data into activity data.
     To calculate operations units, divide the emissions by their passenger vehicle, delivery
-    vehicle or business travel - land conversion factor to convert from kgCOZe to vehicle
+    vehicle or business travel - land conversion factor to convert from kgCO2e to vehicle
     kilometres or passenger kilometres.
+
+    **Source**: [UK Greenhouse gas reporting: conversion factors](https://www.gov.uk/government/collections/government-conversion-factors-for-company-reporting)
     """
     )
     return
@@ -400,7 +453,7 @@ def _(
     def calculate_operations_per_vehicle_type():
         # Create copy of dataframe
         subnational_road_transport_operations = subnational_road_transport_emissions.copy()
-        subnational_road_transport_operations.columns = ["km"]
+        subnational_road_transport_operations.columns = ["Operations (km)"]
 
         vehicel_types = ['Buses - \nMotorways', 'Buses - \nA roads', 'Buses - \nMinor roads',
                'Buses total', 'Diesel cars - \nMotorways', 'Diesel cars - \nA roads',
@@ -435,7 +488,7 @@ def _(
                 factor = average_vans_diesel_factor
             elif vehicle_type.startswith("Petrol LGV"):
                 factor = average_vans_petrol_factor
-            subnational_road_transport_operations.loc[vehicle_type, "km"] = subnational_road_transport_emissions.loc[vehicle_type, "kgCO2e"] / factor
+            subnational_road_transport_operations.loc[vehicle_type, "Operations (km)"] = subnational_road_transport_emissions.loc[vehicle_type, "Emissions (kgCO2e)"] / factor
 
         return subnational_road_transport_operations
 
@@ -449,6 +502,8 @@ def _(
 def _(mo):
     mo.md(
         r"""
+    ---
+
     # 6. Calculate Energy Intensity (per road and vehicle type)
 
     To generate energy intensity, we divide the kWh values from step
@@ -464,15 +519,23 @@ def _(
     subnational_road_transport_operations,
 ):
     subnational_road_transport_energy_intensity = subnational_road_transport_operations.copy()
-    subnational_road_transport_energy_intensity.columns = ["kWh/km"]
-    subnational_road_transport_energy_intensity["kWh/km"] /= subnational_road_transport_fuel_consumption_kwh["kWh"]
+    subnational_road_transport_energy_intensity.columns = ["Energy Intensity (kWh/km)"]
+    subnational_road_transport_energy_intensity["Energy Intensity (kWh/km)"] /= subnational_road_transport_fuel_consumption_kwh["Fuel Consumption (kWh)"]
     subnational_road_transport_energy_intensity
-    return
+    return (subnational_road_transport_energy_intensity,)
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Internal""")
+    mo.md(
+        r"""
+    ---
+
+    ---
+
+    # Internal
+    """
+    )
     return
 
 
@@ -507,20 +570,42 @@ def _(mo, pd):
 
 @app.cell
 def _(
+    diesel_emission_factor_kwh,
     json,
     local_authority_dropdown,
     mo,
+    petrol_emission_factor_kwh,
+    subnational_road_transport_energy_intensity,
     subnational_road_transport_operations,
     year_dropdown,
 ):
+    def get_operations(fuel_type):
+        return subnational_road_transport_operations.loc[fuel_type, "Operations (km)"]
+
+    def get_energy_intensity(fuel_type):
+        return subnational_road_transport_energy_intensity.loc[fuel_type, "Energy Intensity (kWh/km)"]
+
     parameter_data = {
         "year": year_dropdown.value,
         "local_authority": local_authority_dropdown.value,
         "values": {
-            "stock_personal_vehicles_petrol": subnational_road_transport_operations.loc["Petrol cars total", "km"],
-            "stock_personal_vehicles_diesel": subnational_road_transport_operations.loc["Diesel cars total", "km"]
+            "stock_buses_diesel": get_operations("Buses total"),
+            "stock_personal_vehicles_diesel": get_operations("Diesel cars total"),
+            "stock_freight_heavy_trucks_diesel": get_operations("Diesel HGV total"),
+            "stock_freight_light_trucks_diesel": get_operations("Diesel LGV total"),
+            "stock_personal_vehicles_petrol": get_operations("Petrol cars total"),
+            "stock_motorcycles_petrol": get_operations("Motorcycles total"),
+            "stock_freight_light_trucks_petrol": get_operations("Petrol LGV total"),
+            "energy_intensity_buses_diesel": get_energy_intensity("Buses total"),
+            "energy_intensity_personal_vehicles_diesel": get_energy_intensity("Diesel cars total"),
+            "energy_intensity_freight_heavy_trucks_diesel": get_energy_intensity("Diesel HGV total"),
+            "energy_intensity_freight_light_trucks_diesel": get_energy_intensity("Diesel LGV total"),
+            "energy_intensity_personal_vehicles_petrol": get_energy_intensity("Petrol cars total"),
+            "energy_intensity_motorcycles_petrol": get_energy_intensity("Motorcycles total"),
+            "energy_intensity_freight_light_trucks_petrol": get_energy_intensity("Petrol LGV total"),
+            "emission_factor_diesel_kwh_to_co2e": diesel_emission_factor_kwh,
+            "emission_factor_petrol_kwh_to_co2e": petrol_emission_factor_kwh    
         }
-
     }
 
     print(json.dumps(parameter_data, indent=2))
@@ -535,6 +620,17 @@ def _():
     import pandas as pd
     import pyarrow
     return json, pd
+
+
+@app.cell
+def _():
+    # Set up argument parser for running from command line
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--year", default="2023")
+    parser.add_argument("--city", default="Scotland total")
+    args, _ = parser.parse_known_args()
+    return (args,)
 
 
 if __name__ == "__main__":
