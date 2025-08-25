@@ -204,7 +204,7 @@ def _export(folder: Path, output_dir: Path, as_app: bool=False) -> List[dict]:
             "html_path": str(nb.with_suffix(".html")),
         }
         for nb in notebooks
-        if _export_html_wasm(nb, output_dir, as_app=as_app)
+        if _export_html_wasm(nb, output_dir, as_app=as_app) and nb != "__init__.py"
     ]
 
     logger.info(f"Successfully exported {len(notebook_data)} out of {len(notebooks)} files from {folder}")
@@ -244,6 +244,7 @@ def main(
     # Export notebooks from the notebooks/ directory
     notebooks_data = _export(Path("nl/personal-transport"), output_dir, as_app=False)
     notebooks_data += _export(Path("nl/cbs"), output_dir, as_app=False)
+    notebooks_data = _export(Path("gb-sct/personal-transport"), output_dir, as_app=False)
 
     # Zip up the nl/cbs directory:
     os.system(f"zip {output_dir}/cbs.zip nl/cbs/*")
