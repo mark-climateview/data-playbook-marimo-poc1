@@ -60,6 +60,8 @@ def _export_html_wasm(notebook_path: Path, output_dir: Path, as_app: bool = Fals
         logger.info(f"Exporting {notebook_path} to {output_path} as notebook")
         cmd.extend(["--mode", "edit"])  # Notebooks run in "edit" mode
 
+    cmd.extend(["--allow-origins", "*"])  # Allow remote requests
+        
     try:
         # Create full output path and ensure directory exists
         output_file: Path = output_dir / notebook_path.with_suffix(".html")
