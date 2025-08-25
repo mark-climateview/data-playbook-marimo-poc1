@@ -46,6 +46,11 @@ def _export_html_wasm(notebook_path: Path, output_dir: Path, as_app: bool = Fals
     Returns:
         bool: True if export succeeded, False otherwise
     """
+
+    # Reject __init__.py
+    if "__init__.py" in notebok_path:
+        return False
+    
     # Convert .py extension to .html for the output file
     output_path: Path = notebook_path.with_suffix(".html")
 
@@ -60,8 +65,6 @@ def _export_html_wasm(notebook_path: Path, output_dir: Path, as_app: bool = Fals
         logger.info(f"Exporting {notebook_path} to {output_path} as notebook")
         cmd.extend(["--mode", "edit"])  # Notebooks run in "edit" mode
 
-    cmd.extend(["--allow-origins", "*"])  # Allow remote requests
-        
     try:
         # Create full output path and ensure directory exists
         output_file: Path = output_dir / notebook_path.with_suffix(".html")
@@ -206,7 +209,7 @@ def _export(folder: Path, output_dir: Path, as_app: bool=False) -> List[dict]:
             "html_path": str(nb.with_suffix(".html")),
         }
         for nb in notebooks
-        if _export_html_wasm(nb, output_dir, as_app=as_app) and nb != "__init__.py"
+        if _export_html_wasm(nb, output_dir, as_app=as_app)
     ]
 
     logger.info(f"Successfully exported {len(notebook_data)} out of {len(notebooks)} files from {folder}")
