@@ -250,7 +250,10 @@ def main(
     os.system(f"zip {output_dir}/cbs.zip nl/cbs/*")
     os.system(f"zip {output_dir}/cbs.zip util.py")
     os.system(f"zip {output_dir}/cbs.zip data/*")
-    
+
+    os.system(f"mkdir {output_dir}/images")
+    os.system(f"cp images/* {output_dir}/images")
+
     # Export apps from the apps/ directory
     # apps_data = _export(Path("apps"), output_dir, as_app=True)
 
