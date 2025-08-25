@@ -540,11 +540,12 @@ def _(mo):
 
 
 @app.cell
-def _(mo, pd, year_dropdown):
+def _(BytesIO, mo, pd, requests, year_dropdown):
 
     def get_subnational_road_transport_fuel_consumption_dataframe(year):
         url = "https://assets.publishing.service.gov.uk/media/685a855272588f418862071f/subnational-road-transport-fuel-consumption-tables-2005-2023.xlsx"
-        df = pd.read_excel(url, sheet_name=year, skiprows=3)
+        r = requests.get(url)
+        df = pd.read_excel(BytesIO(r.content), sheet_name=year, skiprows=3)
         return df
 
     subnational_road_transport_fuel_consumption_dataframe = get_subnational_road_transport_fuel_consumption_dataframe(year_dropdown.value)
@@ -555,11 +556,12 @@ def _(mo, pd, year_dropdown):
 
 
 @app.cell
-def _(mo, pd):
+def _(BytesIO, mo, pd, requests):
 
     def get_conversion_factors_2025():
         url = "https://assets.publishing.service.gov.uk/media/6846b6ea57f3515d9611f0dd/ghg-conversion-factors-2025-flat-format.xlsx"
-        df = pd.read_excel(url, sheet_name="Factors by Category", skiprows=5)
+        r = requests.get(url)
+        df = pd.read_excel(BytesIO(r.content), sheet_name="Factors by Category", skiprows=5)
         return df 
 
     conversion_factors = get_conversion_factors_2025()
@@ -619,7 +621,8 @@ def _():
     import json
     import pandas as pd
     import pyarrow
-    return json, pd
+    from io import BytesIO
+    return BytesIO, json, pd, requests
 
 
 @app.cell
