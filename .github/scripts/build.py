@@ -48,7 +48,7 @@ def _export_html_wasm(notebook_path: Path, output_dir: Path, as_app: bool = Fals
     """
 
     # Reject __init__.py
-    if "__init__.py" in notebok_path:
+    if "__init__.py" in notebook_path:
         return False
     
     # Convert .py extension to .html for the output file
